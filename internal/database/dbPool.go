@@ -33,7 +33,7 @@ func InitializeConnectionPool(ctx context.Context, config *utils.Config, runMigr
 	if config.DBMinConns > 0 {
 		poolConfig.MinConns = int32(config.DBMinConns)
 	}
-	poolConfig.MaxConnIdleTime = 30 * time.Minute
+	poolConfig.MaxConnIdleTime = 5 * time.Minute
 	poolConfig.MaxConnLifetime = 1 * time.Hour
 
 	pool, err := pgxpool.NewWithConfig(ctx, poolConfig)

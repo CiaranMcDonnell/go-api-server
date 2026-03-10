@@ -2,36 +2,28 @@ package service
 
 import (
 	"bytes"
-	"context"
 	"encoding/json"
 	"io"
 	"log/slog"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	auditDomainInterfaces "github.com/ciaranmcdonnell/go-api-server/internal/core/audit/domain/interfaces"
 	"github.com/ciaranmcdonnell/go-api-server/internal/core/audit/domain/models"
+	"github.com/ciaranmcdonnell/go-api-server/internal/core/audit/worker"
 	"github.com/ciaranmcdonnell/go-api-server/pkg/utils"
 )
 
 type AuditMiddleware gin.HandlerFunc
 
 type AuditMiddlewareConfig struct {
-	SkipPaths []string
-	Service   auditDomainInterfaces.AuditService
+	SkipPaths  []string
+	WorkerPool *worker.Pool
 }
 
-type responseBodyWriter struct {
-	gin.ResponseWriter
-	body *bytes.Buffer
-}
-
-func (w responseBodyWriter) Write(b []byte) (int, error) {
-	w.body.Write(b)
-	return w.ResponseWriter.Write(b)
-}
+const maxBodyCapture = 4096 // 4KB
 
 func NewAuditMiddleware(config AuditMiddlewareConfig) AuditMiddleware {
 	return func(c *gin.Context) {
@@ -47,7 +39,7 @@ func NewAuditMiddleware(config AuditMiddlewareConfig) AuditMiddleware {
 		var requestBodyBytes []byte
 		if c.Request.Body != nil {
 			var err error
-			requestBodyBytes, err = io.ReadAll(c.Request.Body)
+			requestBodyBytes, err = io.ReadAll(io.LimitReader(c.Request.Body, maxBodyCapture))
 			if err != nil {
 				slog.Warn("Failed to read request body for audit", "error", err)
 			} else {
@@ -55,17 +47,14 @@ func NewAuditMiddleware(config AuditMiddlewareConfig) AuditMiddleware {
 			}
 		}
 
-		responseWriter := &responseBodyWriter{body: bytes.NewBufferString(""), ResponseWriter: c.Writer}
-		c.Writer = responseWriter
-
 		c.Next()
 
-		statusCode := responseWriter.Status()
+		statusCode := c.Writer.Status()
 		method := c.Request.Method
 		path := c.Request.URL.Path
 		resource := extractResource(path)
 
-		var userID string = "anonymous"
+		var userID *int
 		var attemptedIdentifier string
 		var requestBodyToLog string = string(requestBodyBytes)
 
@@ -86,7 +75,9 @@ func NewAuditMiddleware(config AuditMiddlewareConfig) AuditMiddleware {
 		} else {
 			if userIDVal, exists := c.Get(utils.ContextKeyUserID); exists {
 				if uid, ok := userIDVal.(string); ok && uid != "" {
-					userID = uid
+					if parsed, err := strconv.Atoi(uid); err == nil {
+						userID = &parsed
+					}
 				}
 			}
 		}
@@ -104,23 +95,15 @@ func NewAuditMiddleware(config AuditMiddlewareConfig) AuditMiddleware {
 			RequestBody:         requestBodyToLog,
 		}
 
-		go func() {
-			defer func() {
-				if r := recover(); r != nil {
-					slog.Error("Panic in audit logging", "recover", r)
-				}
-			}()
-
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-			if err := config.Service.LogAuditEvent(ctx, dto); err != nil {
-				slog.Error("Failed to log audit event", "error", err)
-			}
-		}()
+		config.WorkerPool.Submit(dto)
 
 		latency := time.Since(startTime)
+		logUserID := "anonymous"
+		if userID != nil {
+			logUserID = strconv.Itoa(*userID)
+		}
 		slog.Info("Request processed",
-			"user", userID,
+			"user", logUserID,
 			"path", path,
 			"method", method,
 			"status", statusCode,

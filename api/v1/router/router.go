@@ -9,13 +9,14 @@ import (
 	"github.com/ciaranmcdonnell/go-api-server/api/v1/routes"
 	auditService "github.com/ciaranmcdonnell/go-api-server/internal/core/audit/application/service"
 	auditMiddleware "github.com/ciaranmcdonnell/go-api-server/internal/core/audit/interfaces/http/service"
+	"github.com/ciaranmcdonnell/go-api-server/internal/core/audit/worker"
 	commonMiddleware "github.com/ciaranmcdonnell/go-api-server/internal/core/common/middleware"
 	repository "github.com/ciaranmcdonnell/go-api-server/internal/core/common/repository"
 	commonService "github.com/ciaranmcdonnell/go-api-server/internal/core/common/service"
 	"github.com/ciaranmcdonnell/go-api-server/pkg/utils"
 )
 
-func Setup(config *utils.Config, servicesManager commonService.ServicesInterface, queriesManager repository.QueriesInterface) *gin.Engine {
+func Setup(config *utils.Config, servicesManager commonService.ServicesInterface, queriesManager repository.QueriesInterface) (*gin.Engine, *worker.Pool) {
 	r := gin.Default()
 
 	// Request ID middleware
@@ -33,18 +34,19 @@ func Setup(config *utils.Config, servicesManager commonService.ServicesInterface
 	corsConfig.AllowHeaders = []string{"Origin", "Content-Type", "Accept", "Authorization"}
 	r.Use(cors.New(corsConfig))
 
-	// Setup Audit Service & Middleware
+	// Setup Audit Service & Worker Pool
 	auditRepo := queriesManager.GetAuditQueries()
 	auditSvc := auditService.NewAuditService(auditRepo)
+	auditPool := worker.NewPool(10, 1000, auditSvc)
 
 	auditMiddlewareConfig := auditMiddleware.AuditMiddlewareConfig{
-		SkipPaths: []string{"/health"},
-		Service:   auditSvc,
+		SkipPaths:  []string{"/health"},
+		WorkerPool: auditPool,
 	}
 	auditHandler := auditMiddleware.NewAuditMiddleware(auditMiddlewareConfig)
 	routes.RegisterRoutes(r, servicesManager, auditHandler)
 
 	slog.Info("Routes registered successfully")
 
-	return r
+	return r, auditPool
 }

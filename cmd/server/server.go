@@ -37,13 +37,16 @@ func Execute() {
 	var queriesManager repository.QueriesInterface = repository.NewQueries(database.DBPool)
 	var servicesManager service.ServicesInterface = service.NewServices(config, queriesManager)
 
-	r := router.Setup(config, servicesManager, queriesManager)
+	r, auditPool := router.Setup(config, servicesManager, queriesManager)
+
+	// Start audit worker pool
+	auditPool.Start(ctx)
 
 	srv := &http.Server{
 		Addr:         config.ServerAddress,
 		Handler:      r,
-		ReadTimeout:  15 * time.Second,
-		WriteTimeout: 15 * time.Second,
+		ReadTimeout:  30 * time.Second,
+		WriteTimeout: 30 * time.Second,
 		IdleTimeout:  60 * time.Second,
 	}
 
@@ -66,6 +69,9 @@ func Execute() {
 	if err := srv.Shutdown(shutdownCtx); err != nil {
 		slog.Error("Server forced to shutdown", slog.Any("error", err))
 	}
+
+	// Stop audit pool after HTTP server stops accepting — lets workers drain
+	auditPool.Stop()
 
 	cancel()
 	slog.Info("Server gracefully stopped")

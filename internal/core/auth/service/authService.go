@@ -9,9 +9,14 @@ import (
 
 	userrepo "github.com/ciaranmcdonnell/go-api-server/internal/core/user/repository"
 	"github.com/ciaranmcdonnell/go-api-server/models"
+	"github.com/ciaranmcdonnell/go-api-server/pkg/cache"
 	"github.com/ciaranmcdonnell/go-api-server/pkg/utils"
 	"github.com/golang-jwt/jwt/v5"
 )
+
+var userCache = cache.New[int64, *models.User](30 * time.Second)
+
+const userCacheTTL = 5 * time.Minute
 
 type AuthServiceInterface interface {
 	AuthenticateUser(ctx context.Context, email, password string) (*models.User, error)
@@ -109,11 +114,18 @@ func (s *AuthService) GenerateAuthToken(user *models.User) (string, error) {
 }
 
 func (s *AuthService) GetCurrentUser(ctx context.Context, userID int64) (*models.User, error) {
+	if user, ok := userCache.Get(userID); ok {
+		return user, nil
+	}
+
 	user, err := s.userQueries.GetUserByID(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("error getting user by ID: %w", err)
 	}
-	return &user, nil
+
+	result := &user
+	userCache.Set(userID, result, userCacheTTL)
+	return result, nil
 }
 
 // ExtractTokenFromRequest extracts the JWT token string from Authorization header or cookie value.

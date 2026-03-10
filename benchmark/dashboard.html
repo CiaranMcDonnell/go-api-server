@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Benchmark Dashboard — go-api-server</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background: #0d1117; color: #c9d1d9; padding: 2rem; }
+    h1 { font-size: 1.5rem; margin-bottom: 0.25rem; color: #f0f6fc; }
+    .subtitle { color: #8b949e; margin-bottom: 2rem; font-size: 0.9rem; }
+    .controls { display: flex; gap: 1rem; margin-bottom: 2rem; flex-wrap: wrap; align-items: center; }
+    .controls label { font-size: 0.85rem; color: #8b949e; }
+    .controls select, .controls input[type="file"] { background: #161b22; color: #c9d1d9; border: 1px solid #30363d; border-radius: 6px; padding: 0.4rem 0.6rem; font-size: 0.85rem; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(500px, 1fr)); gap: 1.5rem; }
+    .card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 1.25rem; }
+    .card h2 { font-size: 1rem; margin-bottom: 1rem; color: #f0f6fc; }
+    .chart-container { position: relative; height: 280px; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.8rem; margin-top: 1.5rem; }
+    th, td { padding: 0.5rem 0.75rem; text-align: left; border-bottom: 1px solid #21262d; }
+    th { color: #8b949e; font-weight: 600; }
+    td { color: #c9d1d9; }
+    tr:hover td { background: #1c2128; }
+    .good { color: #3fb950; }
+    .warn { color: #d29922; }
+    .bad { color: #f85149; }
+    .empty { text-align: center; padding: 3rem; color: #8b949e; }
+  </style>
+</head>
+<body>
+  <h1>Benchmark Dashboard</h1>
+  <p class="subtitle">go-api-server performance tracking</p>
+
+  <div class="controls">
+    <div>
+      <label for="csvFile">Load results.csv:</label>
+      <input type="file" id="csvFile" accept=".csv">
+    </div>
+    <div>
+      <label for="scenarioFilter">Scenario:</label>
+      <select id="scenarioFilter"><option value="all">All</option></select>
+    </div>
+    <div>
+      <label for="profileFilter">Profile:</label>
+      <select id="profileFilter"><option value="all">All</option></select>
+    </div>
+  </div>
+
+  <div class="grid">
+    <div class="card">
+      <h2>Latency Over Time (ms)</h2>
+      <div class="chart-container"><canvas id="latencyChart"></canvas></div>
+    </div>
+    <div class="card">
+      <h2>Throughput (req/s)</h2>
+      <div class="chart-container"><canvas id="rpsChart"></canvas></div>
+    </div>
+    <div class="card">
+      <h2>p95 vs p99 Latency (ms)</h2>
+      <div class="chart-container"><canvas id="percentilesChart"></canvas></div>
+    </div>
+    <div class="card">
+      <h2>Error Count</h2>
+      <div class="chart-container"><canvas id="errorsChart"></canvas></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top: 1.5rem;">
+    <h2>All Results</h2>
+    <div id="tableContainer"><p class="empty">Load a results.csv file to see data</p></div>
+  </div>
+
+<script>
+const chartDefaults = {
+  responsive: true,
+  maintainAspectRatio: false,
+  plugins: { legend: { labels: { color: '#8b949e', font: { size: 11 } } } },
+  scales: {
+    x: { ticks: { color: '#8b949e', font: { size: 10 } }, grid: { color: '#21262d' } },
+    y: { ticks: { color: '#8b949e', font: { size: 10 } }, grid: { color: '#21262d' }, beginAtZero: true }
+  }
+};
+
+let charts = {};
+let rawData = [];
+
+function parseCSV(text) {
+  const lines = text.trim().split('\n');
+  const headers = lines[0].split(',').map(h => h.replace(/"/g, '').trim());
+  return lines.slice(1).map(line => {
+    const values = line.split(',').map(v => v.replace(/"/g, '').trim());
+    const obj = {};
+    headers.forEach((h, i) => obj[h] = values[i] || '');
+    return obj;
+  });
+}
+
+function populateFilters(data) {
+  const scenarios = [...new Set(data.map(r => r.scenario))];
+  const profiles = [...new Set(data.map(r => r.profile))];
+
+  const sf = document.getElementById('scenarioFilter');
+  const pf = document.getElementById('profileFilter');
+  sf.innerHTML = '<option value="all">All</option>' + scenarios.map(s => `<option value="${s}">${s}</option>`).join('');
+  pf.innerHTML = '<option value="all">All</option>' + profiles.map(p => `<option value="${p}">${p}</option>`).join('');
+}
+
+function getFiltered() {
+  const scenario = document.getElementById('scenarioFilter').value;
+  const profile = document.getElementById('profileFilter').value;
+  return rawData.filter(r =>
+    (scenario === 'all' || r.scenario === scenario) &&
+    (profile === 'all' || r.profile === profile)
+  );
+}
+
+function makeLabel(row) {
+  const parts = [row.scenario, row.profile];
+  if (row.label) parts.push(row.label);
+  parts.push(row.timestamp);
+  return parts.join(' | ');
+}
+
+function renderCharts(data) {
+  const labels = data.map(makeLabel);
+
+  const datasets = {
+    latency: {
+      labels,
+      datasets: [
+        { label: 'avg', data: data.map(r => +r.duration_avg), borderColor: '#58a6ff', backgroundColor: 'rgba(88,166,255,0.1)', tension: 0.3, fill: true },
+        { label: 'p50', data: data.map(r => +r.duration_p50), borderColor: '#3fb950', backgroundColor: 'transparent', tension: 0.3, borderDash: [5,5] },
+      ]
+    },
+    rps: {
+      labels,
+      datasets: [{ label: 'req/s', data: data.map(r => +r.rps), borderColor: '#d2a8ff', backgroundColor: 'rgba(210,168,255,0.1)', tension: 0.3, fill: true }]
+    },
+    percentiles: {
+      labels,
+      datasets: [
+        { label: 'p95', data: data.map(r => +r.duration_p95), borderColor: '#d29922', backgroundColor: 'rgba(210,153,34,0.1)', tension: 0.3, fill: true },
+        { label: 'p99', data: data.map(r => +r.duration_p99), borderColor: '#f85149', backgroundColor: 'rgba(248,81,73,0.1)', tension: 0.3, fill: true },
+      ]
+    },
+    errors: {
+      labels,
+      datasets: [{ label: 'errors', data: data.map(r => +r.errors), backgroundColor: data.map(r => +r.errors > 0 ? '#f85149' : '#3fb950') }]
+    }
+  };
+
+  Object.values(charts).forEach(c => c.destroy());
+
+  charts.latency = new Chart(document.getElementById('latencyChart'), { type: 'line', data: datasets.latency, options: { ...chartDefaults } });
+  charts.rps = new Chart(document.getElementById('rpsChart'), { type: 'line', data: datasets.rps, options: { ...chartDefaults } });
+  charts.percentiles = new Chart(document.getElementById('percentilesChart'), { type: 'line', data: datasets.percentiles, options: { ...chartDefaults } });
+  charts.errors = new Chart(document.getElementById('errorsChart'), { type: 'bar', data: datasets.errors, options: { ...chartDefaults, plugins: { ...chartDefaults.plugins, legend: { display: false } } } });
+}
+
+function renderTable(data) {
+  if (data.length === 0) {
+    document.getElementById('tableContainer').innerHTML = '<p class="empty">No data matches filters</p>';
+    return;
+  }
+
+  const rateClass = (v) => v > 0 ? 'bad' : 'good';
+  const latClass = (v) => v < 200 ? 'good' : v < 500 ? 'warn' : 'bad';
+
+  let html = `<table><thead><tr>
+    <th>Timestamp</th><th>Scenario</th><th>Profile</th><th>Label</th>
+    <th>Reqs</th><th>RPS</th><th>Avg</th><th>p50</th><th>p95</th><th>p99</th><th>Errors</th>
+  </tr></thead><tbody>`;
+
+  data.forEach(r => {
+    html += `<tr>
+      <td>${r.timestamp}</td><td>${r.scenario}</td><td>${r.profile}</td><td>${r.label || '—'}</td>
+      <td>${r.total_reqs}</td><td>${(+r.rps).toFixed(1)}</td>
+      <td class="${latClass(+r.duration_avg)}">${(+r.duration_avg).toFixed(1)}</td>
+      <td class="${latClass(+r.duration_p50)}">${(+r.duration_p50).toFixed(1)}</td>
+      <td class="${latClass(+r.duration_p95)}">${(+r.duration_p95).toFixed(1)}</td>
+      <td class="${latClass(+r.duration_p99)}">${(+r.duration_p99).toFixed(1)}</td>
+      <td class="${rateClass(+r.errors)}">${r.errors}</td>
+    </tr>`;
+  });
+
+  html += '</tbody></table>';
+  document.getElementById('tableContainer').innerHTML = html;
+}
+
+function refresh() {
+  const data = getFiltered();
+  renderCharts(data);
+  renderTable(data);
+}
+
+document.getElementById('csvFile').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = (ev) => {
+    rawData = parseCSV(ev.target.result);
+    populateFilters(rawData);
+    refresh();
+  };
+  reader.readAsText(file);
+});
+
+document.getElementById('scenarioFilter').addEventListener('change', refresh);
+document.getElementById('profileFilter').addEventListener('change', refresh);
+</script>
+</body>
+</html>

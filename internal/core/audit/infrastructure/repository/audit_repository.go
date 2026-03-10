@@ -46,7 +46,7 @@ func (r *auditRepository) FindByFilter(ctx context.Context, filter models.AuditL
 				a.ip_address, a.user_agent, a.request_body, a.timestamp,
 				u.name as username
 			 FROM audit_logs a
-			 LEFT JOIN users u ON a.user_id = CAST(u.id AS VARCHAR)
+			 LEFT JOIN users u ON a.user_id = u.id
 			 WHERE 1=1`
 
 	args := []interface{}{}
@@ -95,6 +95,21 @@ func (r *auditRepository) FindByFilter(ctx context.Context, filter models.AuditL
 	}
 
 	query += " ORDER BY a.timestamp DESC"
+
+	// Pagination
+	limit := 100
+	if filter.Limit != nil {
+		limit = *filter.Limit
+	}
+	query += fmt.Sprintf(" LIMIT $%d", argIdx)
+	args = append(args, limit)
+	argIdx++
+
+	if filter.Offset != nil {
+		query += fmt.Sprintf(" OFFSET $%d", argIdx)
+		args = append(args, *filter.Offset)
+		argIdx++
+	}
 
 	rows, err := r.db.Query(ctx, query, args...)
 	if err != nil {

@@ -10,7 +10,8 @@ services:
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
       ENVIRONMENT: ${ENVIRONMENT:-development}
-      RUN_MIGRATIONS: ${RUN_MIGRATIONS:-false}
+      RUN_MIGRATIONS: ${RUN_MIGRATIONS:-true}
+      SCHEMA_PATH: /app/migrations
     depends_on:
       postgres:
         condition: service_healthy

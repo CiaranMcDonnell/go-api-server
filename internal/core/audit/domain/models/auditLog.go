@@ -4,7 +4,7 @@ import "time"
 
 type AuditLog struct {
 	ID                  string    `json:"id"`
-	UserID              string    `json:"user_id"`
+	UserID              *int      `json:"user_id"`
 	Username            string    `json:"username,omitempty"`
 	AttemptedIdentifier string    `json:"attempted_identifier,omitempty"`
 	Action              string    `json:"action"`
@@ -21,7 +21,7 @@ type AuditLog struct {
 }
 
 type CreateAuditLogDTO struct {
-	UserID              string
+	UserID              *int
 	AttemptedIdentifier string
 	Action              string
 	Resource            string
@@ -36,7 +36,7 @@ type CreateAuditLogDTO struct {
 }
 
 type AuditLogFilter struct {
-	UserID              *string
+	UserID              *int
 	AttemptedIdentifier *string
 	StartDate           *time.Time
 	EndDate             *time.Time
@@ -44,4 +44,6 @@ type AuditLogFilter struct {
 	Action              *string
 	EntityID            *string
 	EntityType          *string
+	Limit               *int
+	Offset              *int
 }

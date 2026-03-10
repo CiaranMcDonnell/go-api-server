@@ -36,13 +36,23 @@ func LoadConfig() (*Config, error) {
 
 	viper.AutomaticEnv()
 
+	// Bind all config keys so env vars work without a config file
+	for _, key := range []string{
+		"DB_DRIVER", "DB_SOURCE", "DB_MAX_CONNS", "DB_MIN_CONNS",
+		"SERVER_ADDRESS", "ENVIRONMENT",
+		"JWT_SECRET", "JWT_EXPIRATION_HOURS", "COOKIE_MAX_AGE_SECS",
+		"SCHEMA_PATH", "CORS_ORIGINS",
+	} {
+		viper.BindEnv(key)
+	}
+
 	// Set sensible defaults
 	viper.SetDefault("SERVER_ADDRESS", "0.0.0.0:8080")
 	viper.SetDefault("ENVIRONMENT", "development")
 	viper.SetDefault("JWT_EXPIRATION_HOURS", 8)
 	viper.SetDefault("COOKIE_MAX_AGE_SECS", 8*3600)
-	viper.SetDefault("DB_MAX_CONNS", 25)
-	viper.SetDefault("DB_MIN_CONNS", 5)
+	viper.SetDefault("DB_MAX_CONNS", 50)
+	viper.SetDefault("DB_MIN_CONNS", 10)
 
 	var cfg Config
 	if err := viper.ReadInConfig(); err != nil {
