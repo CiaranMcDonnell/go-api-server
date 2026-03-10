@@ -3,8 +3,10 @@ package router
 import (
 	"log/slog"
 	"strings"
+	"time"
 
 	"github.com/gin-contrib/cors"
+	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -31,6 +33,17 @@ func Setup(config *utils.Config, servicesManager commonService.ServicesInterface
 	}
 
 	r.Use(commonMiddleware.RequestID())
+	r.Use(commonMiddleware.RequestLogger())
+
+	// Response compression — cuts payload size 60-80%
+	r.Use(gzip.Gzip(gzip.DefaultCompression))
+
+	// Request body size limit — prevents OOM from oversized payloads
+	r.Use(commonMiddleware.BodyLimit(config.MaxBodyBytes))
+
+	// Per-request timeout — prevents slow queries from piling up
+	timeout := time.Duration(config.RequestTimeoutSecs) * time.Second
+	r.Use(commonMiddleware.Timeout(timeout))
 
 	corsConfig := cors.DefaultConfig()
 	if config.CORSOrigins != "" {

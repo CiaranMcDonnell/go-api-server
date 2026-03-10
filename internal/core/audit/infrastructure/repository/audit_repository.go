@@ -6,6 +6,7 @@ import (
 
 	"github.com/ciaranmcdonnell/go-api-server/internal/core/audit/domain/interfaces"
 	"github.com/ciaranmcdonnell/go-api-server/internal/core/audit/domain/models"
+	"github.com/ciaranmcdonnell/go-api-server/internal/database"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -28,7 +29,8 @@ func (r *auditRepository) Create(ctx context.Context, log *models.AuditLog) erro
 	)
 	VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`
 
-	_, err := r.db.Exec(
+	db := database.DBFromCtx(ctx, r.db)
+	_, err := db.Exec(
 		ctx, query,
 		log.UserID, log.Action, log.Resource, log.RequestPath,
 		log.Method, log.StatusCode, log.IPAddress, log.UserAgent, log.RequestBody, log.Timestamp,
@@ -57,7 +59,8 @@ func (r *auditRepository) CreateBatch(ctx context.Context, logs []*models.AuditL
 		)
 	}
 
-	results := r.db.SendBatch(ctx, batch)
+	db := database.DBFromCtx(ctx, r.db)
+	results := db.SendBatch(ctx, batch)
 	defer results.Close()
 
 	for i := 0; i < len(logs); i++ {
@@ -144,7 +147,8 @@ func (r *auditRepository) FindByFilter(ctx context.Context, filter models.AuditL
 		argIdx++
 	}
 
-	rows, err := r.db.Query(ctx, query, args...)
+	db := database.DBFromCtx(ctx, r.db)
+	rows, err := db.Query(ctx, query, args...)
 	if err != nil {
 		return nil, fmt.Errorf("error querying audit logs: %w", err)
 	}

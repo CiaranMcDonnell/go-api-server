@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/ciaranmcdonnell/go-api-server/internal/core/items/domain/models"
+	sharedmodels "github.com/ciaranmcdonnell/go-api-server/models"
 	"github.com/stretchr/testify/mock"
 )
 
@@ -27,12 +28,17 @@ func (m *MockItemService) GetItem(ctx context.Context, userID int64, itemID int6
 	return args.Get(0).(*models.Item), args.Error(1)
 }
 
-func (m *MockItemService) ListItems(ctx context.Context, userID int64, limit, offset int) ([]*models.Item, error) {
-	args := m.Called(ctx, userID, limit, offset)
-	if args.Get(0) == nil {
-		return nil, args.Error(1)
+func (m *MockItemService) ListItems(ctx context.Context, userID int64, params sharedmodels.PaginationParams) ([]*models.Item, *sharedmodels.PaginationResult, error) {
+	args := m.Called(ctx, userID, params)
+	var items []*models.Item
+	if args.Get(0) != nil {
+		items = args.Get(0).([]*models.Item)
 	}
-	return args.Get(0).([]*models.Item), args.Error(1)
+	var pagination *sharedmodels.PaginationResult
+	if args.Get(1) != nil {
+		pagination = args.Get(1).(*sharedmodels.PaginationResult)
+	}
+	return items, pagination, args.Error(2)
 }
 
 func (m *MockItemService) UpdateItem(ctx context.Context, userID int64, itemID int64, dto models.UpdateItemDTO) (*models.Item, error) {

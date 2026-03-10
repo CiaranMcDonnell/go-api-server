@@ -1,12 +1,10 @@
 package models
 
-// PaginationParams defines the parameters for pagination
 type PaginationParams struct {
-	Page    int `json:"page" form:"page"`
-	PerPage int `json:"per_page" form:"per_page"`
+	Page    int `form:"page"`
+	PerPage int `form:"per_page"`
 }
 
-// PaginationResult contains the pagination metadata
 type PaginationResult struct {
 	Page        int  `json:"page"`
 	PerPage     int  `json:"per_page"`
@@ -19,10 +17,10 @@ func NewPaginationParams(page, perPage int) PaginationParams {
 		page = 1
 	}
 	if perPage <= 0 {
-		perPage = 10
+		perPage = 20
 	}
 	if perPage > 100 {
-		perPage = 100 // Maximum per page
+		perPage = 100
 	}
 
 	return PaginationParams{
@@ -31,19 +29,21 @@ func NewPaginationParams(page, perPage int) PaginationParams {
 	}
 }
 
-func (p PaginationParams) GetOffset() int {
+func (p PaginationParams) Offset() int {
 	return (p.Page - 1) * p.PerPage
 }
 
-func (p PaginationParams) GetLimit() int {
-	return p.PerPage
+// FetchLimit returns PerPage+1 so callers can detect whether a next page exists
+// without running a separate COUNT query.
+func (p PaginationParams) FetchLimit() int {
+	return p.PerPage + 1
 }
 
-func NewPaginationResult(params PaginationParams, hasNextPage bool) PaginationResult {
+func NewPaginationResult(params PaginationParams, fetched int) PaginationResult {
 	return PaginationResult{
 		Page:        params.Page,
 		PerPage:     params.PerPage,
-		HasNextPage: hasNextPage,
+		HasNextPage: fetched > params.PerPage,
 		HasPrevPage: params.Page > 1,
 	}
 }

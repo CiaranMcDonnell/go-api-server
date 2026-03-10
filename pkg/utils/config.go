@@ -20,6 +20,8 @@ type Config struct {
 	CookieMaxAgeSecs   int    `mapstructure:"COOKIE_MAX_AGE_SECS"`
 	SchemaPath         string `mapstructure:"SCHEMA_PATH"`
 	CORSOrigins        string `mapstructure:"CORS_ORIGINS"`
+	RequestTimeoutSecs int    `mapstructure:"REQUEST_TIMEOUT_SECS"`
+	MaxBodyBytes       int64  `mapstructure:"MAX_BODY_BYTES"`
 }
 
 var (
@@ -41,6 +43,7 @@ func LoadConfig() (*Config, error) {
 		"SERVER_ADDRESS", "ENVIRONMENT",
 		"JWT_SECRET", "JWT_EXPIRATION_HOURS", "COOKIE_MAX_AGE_SECS",
 		"SCHEMA_PATH", "CORS_ORIGINS",
+		"REQUEST_TIMEOUT_SECS", "MAX_BODY_BYTES",
 	} {
 		viper.BindEnv(key)
 	}
@@ -51,6 +54,8 @@ func LoadConfig() (*Config, error) {
 	viper.SetDefault("COOKIE_MAX_AGE_SECS", 8*3600)
 	viper.SetDefault("DB_MAX_CONNS", 100)
 	viper.SetDefault("DB_MIN_CONNS", 20)
+	viper.SetDefault("REQUEST_TIMEOUT_SECS", 10)
+	viper.SetDefault("MAX_BODY_BYTES", 1<<20) // 1MB
 
 	var cfg Config
 	if err := viper.ReadInConfig(); err != nil {

@@ -8,6 +8,7 @@ import (
 	authservice "github.com/ciaranmcdonnell/go-api-server/internal/core/auth/service"
 	"github.com/ciaranmcdonnell/go-api-server/internal/metrics"
 	"github.com/ciaranmcdonnell/go-api-server/models"
+	"github.com/ciaranmcdonnell/go-api-server/pkg/apperrors"
 	"github.com/ciaranmcdonnell/go-api-server/pkg/cache"
 	"github.com/ciaranmcdonnell/go-api-server/pkg/utils"
 )
@@ -31,7 +32,7 @@ func RequireAuth(authService authservice.AuthServiceInterface) gin.HandlerFunc {
 
 		claims, err := authService.ValidateToken(tokenString)
 		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
+			apperrors.Error(c, http.StatusUnauthorized, "unauthorized", "Authentication required")
 			c.Abort()
 			return
 		}

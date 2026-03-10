@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/ciaranmcdonnell/go-api-server/internal/core/items/domain/models"
 	"github.com/ciaranmcdonnell/go-api-server/internal/core/items/mocks"
+	sharedmodels "github.com/ciaranmcdonnell/go-api-server/models"
 	"github.com/ciaranmcdonnell/go-api-server/pkg/apperrors"
 	"github.com/ciaranmcdonnell/go-api-server/pkg/utils"
 	"github.com/stretchr/testify/assert"
@@ -154,7 +155,8 @@ func TestListHandler_Success(t *testing.T) {
 	router := setupRouter(svc)
 
 	items := []*models.Item{newTestItem(1, 42), newTestItem(2, 42)}
-	svc.On("ListItems", mock.Anything, int64(42), 20, 0).Return(items, nil)
+	pagination := &sharedmodels.PaginationResult{Page: 1, PerPage: 20, HasNextPage: false, HasPrevPage: false}
+	svc.On("ListItems", mock.Anything, int64(42), sharedmodels.NewPaginationParams(1, 20)).Return(items, pagination, nil)
 
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "/items", nil)
@@ -162,13 +164,15 @@ func TestListHandler_Success(t *testing.T) {
 
 	assert.Equal(t, http.StatusOK, w.Code)
 	assert.Contains(t, w.Body.String(), `"items":[`)
+	assert.Contains(t, w.Body.String(), `"pagination"`)
 }
 
 func TestListHandler_Empty(t *testing.T) {
 	svc := new(mocks.MockItemService)
 	router := setupRouter(svc)
 
-	svc.On("ListItems", mock.Anything, int64(42), 20, 0).Return(nil, nil)
+	pagination := &sharedmodels.PaginationResult{Page: 1, PerPage: 20}
+	svc.On("ListItems", mock.Anything, int64(42), sharedmodels.NewPaginationParams(1, 20)).Return(nil, pagination, nil)
 
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest("GET", "/items", nil)
@@ -182,10 +186,11 @@ func TestListHandler_CustomPagination(t *testing.T) {
 	svc := new(mocks.MockItemService)
 	router := setupRouter(svc)
 
-	svc.On("ListItems", mock.Anything, int64(42), 5, 10).Return([]*models.Item{}, nil)
+	pagination := &sharedmodels.PaginationResult{Page: 3, PerPage: 5, HasPrevPage: true}
+	svc.On("ListItems", mock.Anything, int64(42), sharedmodels.NewPaginationParams(3, 5)).Return([]*models.Item{}, pagination, nil)
 
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest("GET", "/items?limit=5&offset=10", nil)
+	req, _ := http.NewRequest("GET", "/items?page=3&per_page=5", nil)
 	router.ServeHTTP(w, req)
 
 	assert.Equal(t, http.StatusOK, w.Code)

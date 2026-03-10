@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 
+	"github.com/ciaranmcdonnell/go-api-server/internal/database"
 	"github.com/ciaranmcdonnell/go-api-server/models"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -28,7 +29,8 @@ func (q *UserQueries) CreateUser(ctx context.Context, user models.User) (int64, 
 	VALUES ($1, $2, $3)
 	RETURNING id`
 
-	err := q.db.QueryRow(ctx, query, user.Email, user.Name, user.HashedPassword).Scan(&id)
+	db := database.DBFromCtx(ctx, q.db)
+	err := db.QueryRow(ctx, query, user.Email, user.Name, user.HashedPassword).Scan(&id)
 	if err != nil {
 		return 0, err
 	}
@@ -42,7 +44,8 @@ func (q *UserQueries) GetUserByEmail(ctx context.Context, email string) (models.
 	WHERE email = $1
 	LIMIT 1`
 
-	err := q.db.QueryRow(ctx, query, email).Scan(
+	db := database.DBFromCtx(ctx, q.db)
+	err := db.QueryRow(ctx, query, email).Scan(
 		&user.ID,
 		&user.Email,
 		&user.Name,
@@ -61,7 +64,8 @@ func (q *UserQueries) GetUserByID(ctx context.Context, id int64) (models.User, e
 	WHERE id = $1
 	LIMIT 1`
 
-	err := q.db.QueryRow(ctx, query, id).Scan(
+	db := database.DBFromCtx(ctx, q.db)
+	err := db.QueryRow(ctx, query, id).Scan(
 		&user.ID,
 		&user.Email,
 		&user.Name,

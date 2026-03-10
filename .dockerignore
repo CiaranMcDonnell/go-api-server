@@ -1,0 +1,12 @@
+.git
+.github
+.gitignore
+.env
+.env.*
+*.md
+LICENSE
+benchmark/
+monitoring/
+docs/
+**/*_test.go
+**/mocks/

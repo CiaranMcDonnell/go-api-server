@@ -9,6 +9,8 @@ import (
 
 	"github.com/ciaranmcdonnell/go-api-server/internal/core/items/domain/models"
 	"github.com/ciaranmcdonnell/go-api-server/internal/core/items/mocks"
+	"github.com/ciaranmcdonnell/go-api-server/internal/database"
+	sharedmodels "github.com/ciaranmcdonnell/go-api-server/models"
 	"github.com/ciaranmcdonnell/go-api-server/pkg/apperrors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -27,7 +29,7 @@ func newTestItem(id, userID int64) *models.Item {
 
 func TestCreateItem_Success(t *testing.T) {
 	repo := new(mocks.MockItemRepository)
-	svc := NewItemService(repo)
+	svc := NewItemService(repo, database.NewNoOpTxManager())
 	ctx := context.Background()
 
 	dto := models.CreateItemDTO{Name: "New Item", Description: "desc"}
@@ -46,7 +48,7 @@ func TestCreateItem_Success(t *testing.T) {
 
 func TestCreateItem_RepoError(t *testing.T) {
 	repo := new(mocks.MockItemRepository)
-	svc := NewItemService(repo)
+	svc := NewItemService(repo, database.NewNoOpTxManager())
 	ctx := context.Background()
 
 	dto := models.CreateItemDTO{Name: "New Item"}
@@ -62,7 +64,7 @@ func TestCreateItem_RepoError(t *testing.T) {
 
 func TestGetItem_Success(t *testing.T) {
 	repo := new(mocks.MockItemRepository)
-	svc := NewItemService(repo)
+	svc := NewItemService(repo, database.NewNoOpTxManager())
 	ctx := context.Background()
 
 	expected := newTestItem(1, 42)
@@ -77,7 +79,7 @@ func TestGetItem_Success(t *testing.T) {
 
 func TestGetItem_NotFound(t *testing.T) {
 	repo := new(mocks.MockItemRepository)
-	svc := NewItemService(repo)
+	svc := NewItemService(repo, database.NewNoOpTxManager())
 	ctx := context.Background()
 
 	repo.On("FindByID", ctx, int64(999)).Return(nil, fmt.Errorf("not found"))
@@ -91,7 +93,7 @@ func TestGetItem_NotFound(t *testing.T) {
 
 func TestGetItem_WrongOwner(t *testing.T) {
 	repo := new(mocks.MockItemRepository)
-	svc := NewItemService(repo)
+	svc := NewItemService(repo, database.NewNoOpTxManager())
 	ctx := context.Background()
 
 	item := newTestItem(1, 42)
@@ -107,48 +109,61 @@ func TestGetItem_WrongOwner(t *testing.T) {
 
 func TestListItems_Success(t *testing.T) {
 	repo := new(mocks.MockItemRepository)
-	svc := NewItemService(repo)
+	svc := NewItemService(repo, database.NewNoOpTxManager())
 	ctx := context.Background()
 
+	params := sharedmodels.NewPaginationParams(1, 20)
 	expected := []*models.Item{newTestItem(1, 42), newTestItem(2, 42)}
-	repo.On("FindByFilter", ctx, models.ItemFilter{UserID: 42, Limit: 20, Offset: 0}).Return(expected, nil)
+	repo.On("FindByFilter", ctx, models.ItemFilter{UserID: 42, Pagination: params}).Return(expected, nil)
 
-	items, err := svc.ListItems(ctx, 42, 20, 0)
+	items, pagination, err := svc.ListItems(ctx, 42, params)
 
 	assert.NoError(t, err)
 	assert.Len(t, items, 2)
+	assert.False(t, pagination.HasNextPage)
+	assert.False(t, pagination.HasPrevPage)
 	repo.AssertExpectations(t)
 }
 
-func TestListItems_ClampsLimit(t *testing.T) {
+func TestListItems_HasNextPage(t *testing.T) {
 	repo := new(mocks.MockItemRepository)
-	svc := NewItemService(repo)
+	svc := NewItemService(repo, database.NewNoOpTxManager())
 	ctx := context.Background()
 
-	repo.On("FindByFilter", ctx, models.ItemFilter{UserID: 42, Limit: 20, Offset: 0}).Return([]*models.Item{}, nil)
+	params := sharedmodels.NewPaginationParams(1, 2)
+	threeItems := []*models.Item{newTestItem(1, 42), newTestItem(2, 42), newTestItem(3, 42)}
+	repo.On("FindByFilter", ctx, models.ItemFilter{UserID: 42, Pagination: params}).Return(threeItems, nil)
 
-	_, err := svc.ListItems(ctx, 42, 999, 0)
+	items, pagination, err := svc.ListItems(ctx, 42, params)
 
 	assert.NoError(t, err)
+	assert.Len(t, items, 2)
+	assert.True(t, pagination.HasNextPage)
+	assert.False(t, pagination.HasPrevPage)
 	repo.AssertExpectations(t)
 }
 
-func TestListItems_NegativeOffset(t *testing.T) {
+func TestListItems_HasPrevPage(t *testing.T) {
 	repo := new(mocks.MockItemRepository)
-	svc := NewItemService(repo)
+	svc := NewItemService(repo, database.NewNoOpTxManager())
 	ctx := context.Background()
 
-	repo.On("FindByFilter", ctx, models.ItemFilter{UserID: 42, Limit: 20, Offset: 0}).Return([]*models.Item{}, nil)
+	params := sharedmodels.NewPaginationParams(2, 20)
+	expected := []*models.Item{newTestItem(1, 42)}
+	repo.On("FindByFilter", ctx, models.ItemFilter{UserID: 42, Pagination: params}).Return(expected, nil)
 
-	_, err := svc.ListItems(ctx, 42, 20, -5)
+	items, pagination, err := svc.ListItems(ctx, 42, params)
 
 	assert.NoError(t, err)
+	assert.Len(t, items, 1)
+	assert.False(t, pagination.HasNextPage)
+	assert.True(t, pagination.HasPrevPage)
 	repo.AssertExpectations(t)
 }
 
 func TestUpdateItem_Success(t *testing.T) {
 	repo := new(mocks.MockItemRepository)
-	svc := NewItemService(repo)
+	svc := NewItemService(repo, database.NewNoOpTxManager())
 	ctx := context.Background()
 
 	existing := newTestItem(1, 42)
@@ -170,7 +185,7 @@ func TestUpdateItem_Success(t *testing.T) {
 
 func TestUpdateItem_WrongOwner(t *testing.T) {
 	repo := new(mocks.MockItemRepository)
-	svc := NewItemService(repo)
+	svc := NewItemService(repo, database.NewNoOpTxManager())
 	ctx := context.Background()
 
 	existing := newTestItem(1, 42)
@@ -188,7 +203,7 @@ func TestUpdateItem_WrongOwner(t *testing.T) {
 
 func TestUpdateItem_PartialUpdate(t *testing.T) {
 	repo := new(mocks.MockItemRepository)
-	svc := NewItemService(repo)
+	svc := NewItemService(repo, database.NewNoOpTxManager())
 	ctx := context.Background()
 
 	existing := newTestItem(1, 42)
@@ -217,7 +232,7 @@ func TestUpdateItem_PartialUpdate(t *testing.T) {
 
 func TestDeleteItem_Success(t *testing.T) {
 	repo := new(mocks.MockItemRepository)
-	svc := NewItemService(repo)
+	svc := NewItemService(repo, database.NewNoOpTxManager())
 	ctx := context.Background()
 
 	existing := newTestItem(1, 42)
@@ -232,7 +247,7 @@ func TestDeleteItem_Success(t *testing.T) {
 
 func TestDeleteItem_WrongOwner(t *testing.T) {
 	repo := new(mocks.MockItemRepository)
-	svc := NewItemService(repo)
+	svc := NewItemService(repo, database.NewNoOpTxManager())
 	ctx := context.Background()
 
 	existing := newTestItem(1, 42)
@@ -247,7 +262,7 @@ func TestDeleteItem_WrongOwner(t *testing.T) {
 
 func TestDeleteItem_NotFound(t *testing.T) {
 	repo := new(mocks.MockItemRepository)
-	svc := NewItemService(repo)
+	svc := NewItemService(repo, database.NewNoOpTxManager())
 	ctx := context.Background()
 
 	repo.On("FindByID", ctx, int64(999)).Return(nil, fmt.Errorf("not found"))

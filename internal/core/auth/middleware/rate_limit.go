@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/ciaranmcdonnell/go-api-server/internal/metrics"
+	"github.com/ciaranmcdonnell/go-api-server/pkg/apperrors"
 	"github.com/gin-gonic/gin"
 )
 
@@ -105,9 +106,7 @@ func RateLimit(config RateLimiterConfig) gin.HandlerFunc {
 				"ip", ip,
 				"path", c.FullPath(),
 			)
-			c.JSON(http.StatusTooManyRequests, gin.H{
-				"error": "Too many requests, please try again later",
-			})
+			apperrors.Error(c, http.StatusTooManyRequests, "rate_limited", "Too many requests, please try again later")
 			c.Abort()
 			return
 		}

@@ -1,6 +1,10 @@
 package models
 
-import "time"
+import (
+	"time"
+
+	sharedmodels "github.com/ciaranmcdonnell/go-api-server/models"
+)
 
 type Item struct {
 	ID          int64
@@ -31,9 +35,8 @@ type ItemResponse struct {
 }
 
 type ItemFilter struct {
-	UserID int64
-	Limit  int
-	Offset int
+	UserID     int64
+	Pagination sharedmodels.PaginationParams
 }
 
 func (i *Item) ToResponse() *ItemResponse {

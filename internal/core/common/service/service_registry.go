@@ -8,6 +8,7 @@ import (
 	itemsvc "github.com/ciaranmcdonnell/go-api-server/internal/core/items/application/service"
 	iteminterfaces "github.com/ciaranmcdonnell/go-api-server/internal/core/items/domain/interfaces"
 	usersvc "github.com/ciaranmcdonnell/go-api-server/internal/core/user/service"
+	"github.com/ciaranmcdonnell/go-api-server/internal/database"
 	"github.com/ciaranmcdonnell/go-api-server/pkg/utils"
 )
 
@@ -29,7 +30,7 @@ type Services struct {
 	config         *utils.Config
 }
 
-func NewServices(config *utils.Config, queriesManager serviceReg.QueriesInterface) ServicesInterface {
+func NewServices(config *utils.Config, queriesManager serviceReg.QueriesInterface, txMgr database.TxManager) ServicesInterface {
 	auditService := auditsvc.NewAuditService(queriesManager.GetAuditQueries())
 
 	return &Services{
@@ -42,7 +43,7 @@ func NewServices(config *utils.Config, queriesManager serviceReg.QueriesInterfac
 			queriesManager.GetUserQueries(),
 		),
 		Audit:          auditService,
-		Items:          itemsvc.NewItemService(queriesManager.GetItemQueries()),
+		Items:          itemsvc.NewItemService(queriesManager.GetItemQueries(), txMgr),
 		queriesManager: queriesManager,
 		config:         config,
 	}

@@ -35,7 +35,8 @@ func Execute() {
 	defer database.CloseDB()
 
 	var queriesManager repository.QueriesInterface = repository.NewQueries(database.DBPool)
-	var servicesManager service.ServicesInterface = service.NewServices(config, queriesManager)
+	txMgr := database.NewTxManager(database.DBPool)
+	var servicesManager service.ServicesInterface = service.NewServices(config, queriesManager, txMgr)
 
 	r, auditPool := router.Setup(config, servicesManager, queriesManager)
 

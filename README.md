@@ -12,6 +12,10 @@ A reusable Go backend server with built-in authentication, audit logging, and us
 - Rate limiting on auth endpoints
 - Prometheus metrics and Grafana dashboards
 - Structured logging with `log/slog`
+- Gzip response compression
+- Request timeout and body size limits
+- Input sanitization (whitespace trimming, email normalization)
+- Context-based database transactions
 - Docker ready with multi-stage builds
 
 ## Getting Started
@@ -59,9 +63,29 @@ All configuration is via environment variables (or an `app.env` file):
 | `ENVIRONMENT` | `development` | `development` or `production` |
 | `JWT_EXPIRATION_HOURS` | `8` | JWT token lifetime |
 | `CORS_ORIGINS` | `http://localhost:3000` | Allowed CORS origins |
-| `DB_MAX_CONNS` | `25` | Max database connections |
-| `DB_MIN_CONNS` | `5` | Min database connections |
+| `DB_MAX_CONNS` | `100` | Max database connections |
+| `DB_MIN_CONNS` | `20` | Min database connections |
+| `REQUEST_TIMEOUT_SECS` | `10` | Per-request timeout |
+| `MAX_BODY_BYTES` | `1048576` | Max request body size (1MB) |
 | `RUN_MIGRATIONS` | `false` | Run migrations on startup |
+
+## Benchmarks
+
+Tested with [k6](https://k6.io/) running CRUD operations (create, list, get, update, delete) against the items API.
+
+| VUs | Requests | Throughput | p95 | p99 | Failures |
+|-----|----------|------------|-----|-----|----------|
+| 5 | 1.5k | 30 req/s | 4.93ms | 5.71ms | 0% |
+| 300 | 510k | 1,414 req/s | 7.5ms | 9ms | 0% |
+| 1000 | 1.9M | 4,510 req/s | 11ms | 18.5ms | 0% |
+
+Run benchmarks:
+
+```bash
+k6 run -e PROFILE=smoke benchmark/scenarios/items-crud.js      # 5 VUs, 50s
+k6 run -e PROFILE=stress benchmark/scenarios/items-crud.js     # 300 VUs, 6m
+k6 run -e PROFILE=breakpoint benchmark/scenarios/items-crud.js # 1000 VUs, 7m
+```
 
 ## License
 

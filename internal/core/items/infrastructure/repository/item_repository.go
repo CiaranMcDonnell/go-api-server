@@ -6,6 +6,7 @@ import (
 
 	"github.com/ciaranmcdonnell/go-api-server/internal/core/items/domain/interfaces"
 	"github.com/ciaranmcdonnell/go-api-server/internal/core/items/domain/models"
+	"github.com/ciaranmcdonnell/go-api-server/internal/database"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -18,8 +19,9 @@ func NewItemRepository(db *pgxpool.Pool) interfaces.ItemRepository {
 }
 
 func (r *itemRepository) Create(ctx context.Context, item *models.Item) (int64, error) {
+	db := database.DBFromCtx(ctx, r.db)
 	var id int64
-	err := r.db.QueryRow(ctx,
+	err := db.QueryRow(ctx,
 		`INSERT INTO items (user_id, name, description) VALUES ($1, $2, $3) RETURNING id`,
 		item.UserID, item.Name, item.Description,
 	).Scan(&id)
@@ -30,8 +32,9 @@ func (r *itemRepository) Create(ctx context.Context, item *models.Item) (int64, 
 }
 
 func (r *itemRepository) FindByID(ctx context.Context, id int64) (*models.Item, error) {
+	db := database.DBFromCtx(ctx, r.db)
 	var item models.Item
-	err := r.db.QueryRow(ctx,
+	err := db.QueryRow(ctx,
 		`SELECT id, user_id, name, description, created_at, updated_at FROM items WHERE id = $1`,
 		id,
 	).Scan(&item.ID, &item.UserID, &item.Name, &item.Description, &item.CreatedAt, &item.UpdatedAt)
@@ -42,12 +45,13 @@ func (r *itemRepository) FindByID(ctx context.Context, id int64) (*models.Item, 
 }
 
 func (r *itemRepository) FindByFilter(ctx context.Context, filter models.ItemFilter) ([]*models.Item, error) {
-	rows, err := r.db.Query(ctx,
+	db := database.DBFromCtx(ctx, r.db)
+	rows, err := db.Query(ctx,
 		`SELECT id, user_id, name, description, created_at, updated_at
 		 FROM items WHERE user_id = $1
 		 ORDER BY created_at DESC
 		 LIMIT $2 OFFSET $3`,
-		filter.UserID, filter.Limit, filter.Offset,
+		filter.UserID, filter.Pagination.FetchLimit(), filter.Pagination.Offset(),
 	)
 	if err != nil {
 		return nil, fmt.Errorf("listing items: %w", err)
@@ -66,7 +70,8 @@ func (r *itemRepository) FindByFilter(ctx context.Context, filter models.ItemFil
 }
 
 func (r *itemRepository) Update(ctx context.Context, item *models.Item) error {
-	_, err := r.db.Exec(ctx,
+	db := database.DBFromCtx(ctx, r.db)
+	_, err := db.Exec(ctx,
 		`UPDATE items SET name = $1, description = $2, updated_at = NOW() WHERE id = $3`,
 		item.Name, item.Description, item.ID,
 	)
@@ -77,7 +82,8 @@ func (r *itemRepository) Update(ctx context.Context, item *models.Item) error {
 }
 
 func (r *itemRepository) Delete(ctx context.Context, id int64) error {
-	_, err := r.db.Exec(ctx, `DELETE FROM items WHERE id = $1`, id)
+	db := database.DBFromCtx(ctx, r.db)
+	_, err := db.Exec(ctx, `DELETE FROM items WHERE id = $1`, id)
 	if err != nil {
 		return fmt.Errorf("deleting item: %w", err)
 	}

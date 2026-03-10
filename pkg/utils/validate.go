@@ -27,12 +27,17 @@ func init() {
 func BindJSON(body io.Reader, obj interface{}) error {
 	data, err := io.ReadAll(body)
 	if err != nil {
+		if err.Error() == "http: request body too large" {
+			return fmt.Errorf("Request body too large")
+		}
 		return fmt.Errorf("Failed to read request body")
 	}
 
 	if err := json.Unmarshal(data, obj); err != nil {
 		return fmt.Errorf("Invalid JSON format")
 	}
+
+	SanitizeStruct(obj)
 
 	if err := validate.Struct(obj); err != nil {
 		if errs, ok := err.(validator.ValidationErrors); ok {

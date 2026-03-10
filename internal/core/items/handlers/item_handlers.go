@@ -1,13 +1,13 @@
 package handlers
 
 import (
-	"errors"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/ciaranmcdonnell/go-api-server/internal/core/items/domain/interfaces"
 	"github.com/ciaranmcdonnell/go-api-server/internal/core/items/domain/models"
+	sharedmodels "github.com/ciaranmcdonnell/go-api-server/models"
 	"github.com/ciaranmcdonnell/go-api-server/pkg/apperrors"
 	"github.com/ciaranmcdonnell/go-api-server/pkg/utils"
 )
@@ -15,31 +15,20 @@ import (
 func getUserID(c *gin.Context) (int64, bool) {
 	val, exists := c.Get(utils.ContextKeyUserID)
 	if !exists {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
+		apperrors.Error(c, http.StatusUnauthorized, "unauthorized", "Authentication required")
 		return 0, false
 	}
 	str, ok := val.(string)
 	if !ok {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID"})
+		apperrors.Error(c, http.StatusInternalServerError, "internal_error", "Invalid user ID")
 		return 0, false
 	}
 	id, err := strconv.ParseInt(str, 10, 64)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid user ID"})
+		apperrors.Error(c, http.StatusInternalServerError, "internal_error", "Invalid user ID")
 		return 0, false
 	}
 	return id, true
-}
-
-func errorResponse(c *gin.Context, err error) {
-	switch {
-	case errors.Is(err, apperrors.ErrNotFound):
-		c.JSON(http.StatusNotFound, gin.H{"error": "Item not found"})
-	case errors.Is(err, apperrors.ErrConflict):
-		c.JSON(http.StatusConflict, gin.H{"error": "Item already exists"})
-	default:
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
-	}
 }
 
 func CreateHandler(svc interfaces.ItemService) gin.HandlerFunc {
@@ -51,13 +40,13 @@ func CreateHandler(svc interfaces.ItemService) gin.HandlerFunc {
 
 		var dto models.CreateItemDTO
 		if err := utils.BindJSON(c.Request.Body, &dto); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			apperrors.Error(c, http.StatusBadRequest, "validation_error", err.Error())
 			return
 		}
 
 		item, err := svc.CreateItem(c.Request.Context(), userID, dto)
 		if err != nil {
-			errorResponse(c, err)
+			apperrors.MapError(c, err)
 			return
 		}
 
@@ -74,13 +63,13 @@ func GetHandler(svc interfaces.ItemService) gin.HandlerFunc {
 
 		itemID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid item ID"})
+			apperrors.Error(c, http.StatusBadRequest, "invalid_id", "Invalid item ID")
 			return
 		}
 
 		item, err := svc.GetItem(c.Request.Context(), userID, itemID)
 		if err != nil {
-			errorResponse(c, err)
+			apperrors.MapError(c, err)
 			return
 		}
 
@@ -95,12 +84,13 @@ func ListHandler(svc interfaces.ItemService) gin.HandlerFunc {
 			return
 		}
 
-		limit, _ := strconv.Atoi(c.DefaultQuery("limit", "20"))
-		offset, _ := strconv.Atoi(c.DefaultQuery("offset", "0"))
+		page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
+		perPage, _ := strconv.Atoi(c.DefaultQuery("per_page", "20"))
+		params := sharedmodels.NewPaginationParams(page, perPage)
 
-		items, err := svc.ListItems(c.Request.Context(), userID, limit, offset)
+		items, pagination, err := svc.ListItems(c.Request.Context(), userID, params)
 		if err != nil {
-			errorResponse(c, err)
+			apperrors.MapError(c, err)
 			return
 		}
 
@@ -108,7 +98,10 @@ func ListHandler(svc interfaces.ItemService) gin.HandlerFunc {
 			items = []*models.Item{}
 		}
 
-		c.JSON(http.StatusOK, gin.H{"items": models.ItemsToResponses(items)})
+		c.JSON(http.StatusOK, gin.H{
+			"items":      models.ItemsToResponses(items),
+			"pagination": pagination,
+		})
 	}
 }
 
@@ -121,19 +114,19 @@ func UpdateHandler(svc interfaces.ItemService) gin.HandlerFunc {
 
 		itemID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid item ID"})
+			apperrors.Error(c, http.StatusBadRequest, "invalid_id", "Invalid item ID")
 			return
 		}
 
 		var dto models.UpdateItemDTO
 		if err := utils.BindJSON(c.Request.Body, &dto); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			apperrors.Error(c, http.StatusBadRequest, "validation_error", err.Error())
 			return
 		}
 
 		item, err := svc.UpdateItem(c.Request.Context(), userID, itemID, dto)
 		if err != nil {
-			errorResponse(c, err)
+			apperrors.MapError(c, err)
 			return
 		}
 
@@ -150,15 +143,15 @@ func DeleteHandler(svc interfaces.ItemService) gin.HandlerFunc {
 
 		itemID, err := strconv.ParseInt(c.Param("id"), 10, 64)
 		if err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid item ID"})
+			apperrors.Error(c, http.StatusBadRequest, "invalid_id", "Invalid item ID")
 			return
 		}
 
 		if err := svc.DeleteItem(c.Request.Context(), userID, itemID); err != nil {
-			errorResponse(c, err)
+			apperrors.MapError(c, err)
 			return
 		}
 
-		c.JSON(http.StatusOK, gin.H{"message": "Item deleted"})
+		c.JSON(http.StatusOK, gin.H{"message": "Item deleted successfully"})
 	}
 }
