@@ -5,14 +5,33 @@ Load tests using [k6](https://k6.io) to measure API throughput, latency, and bre
 ## Setup
 
 Install k6:
-```powershell
+```
 winget install k6
 ```
 
 Start the server:
-```bash
+```
 docker compose up --build
 ```
+
+## Quick Start
+
+```bash
+# Run a single benchmark
+node benchmark/bench.mjs run health smoke
+node benchmark/bench.mjs run auth-flow stress --label opt-v3
+
+# Run all scenarios with a profile
+node benchmark/bench.mjs run-all stress --label opt-v3
+
+# Extract existing k6 JSON files to CSV
+node benchmark/bench.mjs extract "benchmark/results/*_stress_*.json" --label opt-v3
+
+# Compare last two runs of a scenario/profile
+node benchmark/bench.mjs compare auth-flow stress
+```
+
+Each `run` automatically: executes k6 → parses JSON output → appends to `results.csv` → prints a comparison against the previous run.
 
 ## Scenarios
 
@@ -20,7 +39,7 @@ docker compose up --build
 |---|---|---|
 | `health` | `scenarios/health.js` | Raw framework throughput, audit middleware overhead |
 | `auth-flow` | `scenarios/auth-flow.js` | Full lifecycle: register → login → /me → logout |
-| `login-sustained` | `scenarios/login-sustained.js` | Sustained login load (bcrypt + JWT isolation) |
+| `login-sustained` | `scenarios/login-sustained.js` | Sustained login load (argon2id + JWT isolation) |
 
 ## Profiles
 
@@ -30,24 +49,6 @@ docker compose up --build
 | `load` | 50 VUs, 2m | Normal production load |
 | `stress` | Ramp to 300 VUs, 6m | Find the breaking point |
 | `spike` | Jump to 500 VUs | Sudden traffic burst |
-
-## Usage
-
-Run a benchmark:
-```powershell
-.\benchmark\scripts\run.ps1 health smoke
-.\benchmark\scripts\run.ps1 auth-flow load
-```
-
-Extract results to CSV:
-```powershell
-go run benchmark/cmd/benchtools/main.go extract benchmark/results/<file>.json --label "baseline"
-```
-
-Run k6 directly:
-```bash
-k6 run -e PROFILE=stress benchmark/scenarios/auth-flow.js
-```
 
 ## Results & Dashboard
 
@@ -67,20 +68,15 @@ Open `dashboard.html` in a browser and load `results.csv` to visualize latency, 
 
 ```
 benchmark/
-├── config.js                # Shared profiles, thresholds, base URL
-├── helpers.js               # Shared utilities (cookies, unique emails)
-├── dashboard.html           # Chart.js visualisation (open in browser)
-├── results.csv              # Accumulated metrics (committed)
-├── JOURNAL.md               # Optimisation notes and observations
-├── cmd/benchtools/main.go   # Go tool to extract k6 results → CSV
+├── bench.mjs               # CLI — run, extract, compare (Node.js)
+├── config.js               # Shared profiles, thresholds, base URL
+├── helpers.js              # Shared utilities (cookies, unique emails)
+├── dashboard.html          # Chart.js visualisation (open in browser)
+├── results.csv             # Accumulated metrics (committed)
+├── JOURNAL.md              # Optimisation changelog
 ├── scenarios/
-│   ├── health.js            # Baseline throughput
-│   ├── auth-flow.js         # Full auth lifecycle
-│   └── login-sustained.js   # Sustained login hammering
-├── scripts/
-│   ├── run.ps1              # Run a single scenario (PowerShell)
-│   ├── run-all.ps1          # Run all scenarios (PowerShell)
-│   ├── run.sh               # Run a single scenario (bash)
-│   └── run-all.sh           # Run all scenarios (bash)
-└── results/                 # Raw k6 JSON output (gitignored)
+│   ├── health.js           # Baseline throughput
+│   ├── auth-flow.js        # Full auth lifecycle
+│   └── login-sustained.js  # Sustained login hammering
+└── results/                # Raw k6 JSON output (gitignored)
 ```

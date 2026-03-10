@@ -6,6 +6,7 @@ import (
 
 	"github.com/ciaranmcdonnell/go-api-server/internal/core/audit/domain/interfaces"
 	"github.com/ciaranmcdonnell/go-api-server/internal/core/audit/domain/models"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -34,6 +35,38 @@ func (r *auditRepository) Create(ctx context.Context, log *models.AuditLog) erro
 		log.EntityID, log.EntityType,
 	)
 	return err
+}
+
+func (r *auditRepository) CreateBatch(ctx context.Context, logs []*models.AuditLog) error {
+	if len(logs) == 0 {
+		return nil
+	}
+
+	batch := &pgx.Batch{}
+	query := `INSERT INTO audit_logs (
+		user_id, action, resource, request_path,
+		method, status_code, ip_address, user_agent, request_body, timestamp,
+		entity_id, entity_type
+	) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`
+
+	for _, log := range logs {
+		batch.Queue(query,
+			log.UserID, log.Action, log.Resource, log.RequestPath,
+			log.Method, log.StatusCode, log.IPAddress, log.UserAgent, log.RequestBody, log.Timestamp,
+			log.EntityID, log.EntityType,
+		)
+	}
+
+	results := r.db.SendBatch(ctx, batch)
+	defer results.Close()
+
+	for i := 0; i < len(logs); i++ {
+		if _, err := results.Exec(); err != nil {
+			return fmt.Errorf("batch insert row %d: %w", i, err)
+		}
+	}
+
+	return nil
 }
 
 func (r *auditRepository) FindByFilter(ctx context.Context, filter models.AuditLogFilter) ([]*models.AuditLog, error) {

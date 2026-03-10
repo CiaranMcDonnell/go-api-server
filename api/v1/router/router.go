@@ -6,6 +6,8 @@ import (
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/ciaranmcdonnell/go-api-server/api/v1/routes"
 	auditService "github.com/ciaranmcdonnell/go-api-server/internal/core/audit/application/service"
 	auditMiddleware "github.com/ciaranmcdonnell/go-api-server/internal/core/audit/interfaces/http/service"
@@ -13,11 +15,25 @@ import (
 	commonMiddleware "github.com/ciaranmcdonnell/go-api-server/internal/core/common/middleware"
 	repository "github.com/ciaranmcdonnell/go-api-server/internal/core/common/repository"
 	commonService "github.com/ciaranmcdonnell/go-api-server/internal/core/common/service"
+	"github.com/ciaranmcdonnell/go-api-server/internal/database"
+	"github.com/ciaranmcdonnell/go-api-server/internal/metrics"
 	"github.com/ciaranmcdonnell/go-api-server/pkg/utils"
 )
 
 func Setup(config *utils.Config, servicesManager commonService.ServicesInterface, queriesManager repository.QueriesInterface) (*gin.Engine, *worker.Pool) {
-	r := gin.Default()
+	r := gin.New()
+	r.Use(gin.Recovery())
+
+	// Prometheus metrics middleware
+	r.Use(metrics.PrometheusMiddleware())
+
+	// Metrics endpoint (before audit middleware so it's not audited)
+	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
+
+	// Register DB pool collector
+	if database.DBPool != nil {
+		prometheus.MustRegister(metrics.NewDBPoolCollector(database.DBPool))
+	}
 
 	// Request ID middleware
 	r.Use(commonMiddleware.RequestID())
@@ -40,7 +56,7 @@ func Setup(config *utils.Config, servicesManager commonService.ServicesInterface
 	auditPool := worker.NewPool(10, 1000, auditSvc)
 
 	auditMiddlewareConfig := auditMiddleware.AuditMiddlewareConfig{
-		SkipPaths:  []string{"/health"},
+		SkipPaths:  []string{"/health", "/metrics"},
 		WorkerPool: auditPool,
 	}
 	auditHandler := auditMiddleware.NewAuditMiddleware(auditMiddlewareConfig)

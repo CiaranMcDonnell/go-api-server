@@ -5,6 +5,7 @@ import (
 	"crypto/subtle"
 	"encoding/base64"
 	"fmt"
+	"runtime"
 	"strings"
 
 	"golang.org/x/crypto/argon2"
@@ -18,7 +19,14 @@ const (
 	argonSaltLen = 16
 )
 
+// hashSem limits concurrent argon2id operations to CPU count,
+// preventing goroutine thrashing and memory storms under load.
+var hashSem = make(chan struct{}, runtime.NumCPU())
+
 func HashPassword(password string) (string, error) {
+	hashSem <- struct{}{}
+	defer func() { <-hashSem }()
+
 	salt := make([]byte, argonSaltLen)
 	if _, err := rand.Read(salt); err != nil {
 		return "", fmt.Errorf("generating salt: %w", err)
@@ -37,6 +45,9 @@ func HashPassword(password string) (string, error) {
 }
 
 func CheckPassword(password, encodedHash string) bool {
+	hashSem <- struct{}{}
+	defer func() { <-hashSem }()
+
 	salt, hash, err := parseArgon2Hash(encodedHash)
 	if err != nil {
 		return false

@@ -8,5 +8,6 @@ import (
 
 type AuditService interface {
 	LogAuditEvent(ctx context.Context, dto models.CreateAuditLogDTO) error
+	LogAuditEventBatch(ctx context.Context, dtos []models.CreateAuditLogDTO) error
 	GetAuditLogs(ctx context.Context, filter models.AuditLogFilter) ([]*models.AuditLog, error)
 }

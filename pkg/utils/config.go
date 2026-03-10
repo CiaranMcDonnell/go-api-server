@@ -51,8 +51,8 @@ func LoadConfig() (*Config, error) {
 	viper.SetDefault("ENVIRONMENT", "development")
 	viper.SetDefault("JWT_EXPIRATION_HOURS", 8)
 	viper.SetDefault("COOKIE_MAX_AGE_SECS", 8*3600)
-	viper.SetDefault("DB_MAX_CONNS", 50)
-	viper.SetDefault("DB_MIN_CONNS", 10)
+	viper.SetDefault("DB_MAX_CONNS", 100)
+	viper.SetDefault("DB_MIN_CONNS", 20)
 
 	var cfg Config
 	if err := viper.ReadInConfig(); err != nil {
