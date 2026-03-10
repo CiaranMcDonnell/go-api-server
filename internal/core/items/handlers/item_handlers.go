@@ -1,12 +1,14 @@
 package handlers
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/ciaranmcdonnell/go-api-server/internal/core/items/domain/interfaces"
 	"github.com/ciaranmcdonnell/go-api-server/internal/core/items/domain/models"
+	"github.com/ciaranmcdonnell/go-api-server/pkg/apperrors"
 	"github.com/ciaranmcdonnell/go-api-server/pkg/utils"
 )
 
@@ -29,6 +31,17 @@ func getUserID(c *gin.Context) (int64, bool) {
 	return id, true
 }
 
+func errorResponse(c *gin.Context, err error) {
+	switch {
+	case errors.Is(err, apperrors.ErrNotFound):
+		c.JSON(http.StatusNotFound, gin.H{"error": "Item not found"})
+	case errors.Is(err, apperrors.ErrConflict):
+		c.JSON(http.StatusConflict, gin.H{"error": "Item already exists"})
+	default:
+		c.JSON(http.StatusInternalServerError, gin.H{"error": "Internal server error"})
+	}
+}
+
 func CreateHandler(svc interfaces.ItemService) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		userID, ok := getUserID(c)
@@ -44,7 +57,7 @@ func CreateHandler(svc interfaces.ItemService) gin.HandlerFunc {
 
 		item, err := svc.CreateItem(c.Request.Context(), userID, dto)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create item"})
+			errorResponse(c, err)
 			return
 		}
 
@@ -67,7 +80,7 @@ func GetHandler(svc interfaces.ItemService) gin.HandlerFunc {
 
 		item, err := svc.GetItem(c.Request.Context(), userID, itemID)
 		if err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Item not found"})
+			errorResponse(c, err)
 			return
 		}
 
@@ -87,7 +100,7 @@ func ListHandler(svc interfaces.ItemService) gin.HandlerFunc {
 
 		items, err := svc.ListItems(c.Request.Context(), userID, limit, offset)
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to list items"})
+			errorResponse(c, err)
 			return
 		}
 
@@ -120,7 +133,7 @@ func UpdateHandler(svc interfaces.ItemService) gin.HandlerFunc {
 
 		item, err := svc.UpdateItem(c.Request.Context(), userID, itemID, dto)
 		if err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Item not found"})
+			errorResponse(c, err)
 			return
 		}
 
@@ -142,7 +155,7 @@ func DeleteHandler(svc interfaces.ItemService) gin.HandlerFunc {
 		}
 
 		if err := svc.DeleteItem(c.Request.Context(), userID, itemID); err != nil {
-			c.JSON(http.StatusNotFound, gin.H{"error": "Item not found"})
+			errorResponse(c, err)
 			return
 		}
 

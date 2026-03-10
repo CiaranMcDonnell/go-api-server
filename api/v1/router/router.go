@@ -23,22 +23,15 @@ import (
 func Setup(config *utils.Config, servicesManager commonService.ServicesInterface, queriesManager repository.QueriesInterface) (*gin.Engine, *worker.Pool) {
 	r := gin.New()
 	r.Use(gin.Recovery())
-
-	// Prometheus metrics middleware
 	r.Use(metrics.PrometheusMiddleware())
-
-	// Metrics endpoint (before audit middleware so it's not audited)
 	r.GET("/metrics", gin.WrapH(promhttp.Handler()))
 
-	// Register DB pool collector
 	if database.DBPool != nil {
 		prometheus.MustRegister(metrics.NewDBPoolCollector(database.DBPool))
 	}
 
-	// Request ID middleware
 	r.Use(commonMiddleware.RequestID())
 
-	// CORS setup
 	corsConfig := cors.DefaultConfig()
 	if config.CORSOrigins != "" {
 		corsConfig.AllowOrigins = strings.Split(config.CORSOrigins, ",")
@@ -50,7 +43,6 @@ func Setup(config *utils.Config, servicesManager commonService.ServicesInterface
 	corsConfig.AllowHeaders = []string{"Origin", "Content-Type", "Accept", "Authorization"}
 	r.Use(cors.New(corsConfig))
 
-	// Setup Audit Service & Worker Pool
 	auditRepo := queriesManager.GetAuditQueries()
 	auditSvc := auditService.NewAuditService(auditRepo)
 	auditPool := worker.NewPool(10, 1000, auditSvc)

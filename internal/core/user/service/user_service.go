@@ -3,9 +3,11 @@ package services
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	userrepo "github.com/ciaranmcdonnell/go-api-server/internal/core/user/repository"
 	"github.com/ciaranmcdonnell/go-api-server/models"
+	"github.com/ciaranmcdonnell/go-api-server/pkg/apperrors"
 	"github.com/ciaranmcdonnell/go-api-server/pkg/utils"
 )
 
@@ -39,6 +41,9 @@ func (s *UserService) RegisterUser(ctx context.Context, req *models.CreateUserRe
 
 	id, err := s.userQueries.CreateUser(ctx, user)
 	if err != nil {
+		if strings.Contains(err.Error(), "duplicate key") || strings.Contains(err.Error(), "unique constraint") {
+			return 0, fmt.Errorf("%w: email already registered", apperrors.ErrConflict)
+		}
 		return 0, err
 	}
 

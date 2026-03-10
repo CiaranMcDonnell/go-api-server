@@ -13,14 +13,16 @@ type entry[V any] struct {
 type Cache[K comparable, V any] struct {
 	mu      sync.RWMutex
 	items   map[K]entry[V]
+	maxSize int
 	stop    chan struct{}
 	stopped bool
 }
 
-func New[K comparable, V any](cleanupInterval time.Duration) *Cache[K, V] {
+func New[K comparable, V any](cleanupInterval time.Duration, maxSize int) *Cache[K, V] {
 	c := &Cache[K, V]{
-		items: make(map[K]entry[V]),
-		stop:  make(chan struct{}),
+		items:   make(map[K]entry[V]),
+		maxSize: maxSize,
+		stop:    make(chan struct{}),
 	}
 
 	go func() {
@@ -55,6 +57,10 @@ func (c *Cache[K, V]) Set(key K, value V, ttl time.Duration) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
+	if _, exists := c.items[key]; !exists && c.maxSize > 0 && len(c.items) >= c.maxSize {
+		c.evictOldest()
+	}
+
 	c.items[key] = entry[V]{
 		value:     value,
 		expiresAt: time.Now().Add(ttl),
@@ -77,6 +83,25 @@ func (c *Cache[K, V]) evictExpired() {
 		if now.After(e.expiresAt) {
 			delete(c.items, k)
 		}
+	}
+}
+
+// evictOldest removes the entry closest to expiration. Must be called with mu held.
+func (c *Cache[K, V]) evictOldest() {
+	var oldestKey K
+	var oldestTime time.Time
+	first := true
+
+	for k, e := range c.items {
+		if first || e.expiresAt.Before(oldestTime) {
+			oldestKey = k
+			oldestTime = e.expiresAt
+			first = false
+		}
+	}
+
+	if !first {
+		delete(c.items, oldestKey)
 	}
 }
 

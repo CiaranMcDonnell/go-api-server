@@ -2,7 +2,6 @@ package models
 
 import "time"
 
-// Domain model — no JSON tags, used internally by services and repositories.
 type AuditLog struct {
 	ID                  string
 	UserID              *int
@@ -21,7 +20,6 @@ type AuditLog struct {
 	Timestamp           time.Time
 }
 
-// API output — safe to serialize.
 type AuditLogResponse struct {
 	ID                  string    `json:"id"`
 	UserID              *int      `json:"user_id"`
@@ -40,7 +38,6 @@ type AuditLogResponse struct {
 	Timestamp           time.Time `json:"timestamp"`
 }
 
-// API input for creating an audit log.
 type CreateAuditLogDTO struct {
 	UserID              *int
 	AttemptedIdentifier string
@@ -69,7 +66,6 @@ type AuditLogFilter struct {
 	Offset              *int
 }
 
-// ToResponse converts a domain AuditLog to an API response.
 func (a *AuditLog) ToResponse() *AuditLogResponse {
 	return &AuditLogResponse{
 		ID:                  a.ID,

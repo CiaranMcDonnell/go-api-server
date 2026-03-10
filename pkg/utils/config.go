@@ -36,7 +36,6 @@ func LoadConfig() (*Config, error) {
 
 	viper.AutomaticEnv()
 
-	// Bind all config keys so env vars work without a config file
 	for _, key := range []string{
 		"DB_DRIVER", "DB_SOURCE", "DB_MAX_CONNS", "DB_MIN_CONNS",
 		"SERVER_ADDRESS", "ENVIRONMENT",
@@ -46,7 +45,6 @@ func LoadConfig() (*Config, error) {
 		viper.BindEnv(key)
 	}
 
-	// Set sensible defaults
 	viper.SetDefault("SERVER_ADDRESS", "0.0.0.0:8080")
 	viper.SetDefault("ENVIRONMENT", "development")
 	viper.SetDefault("JWT_EXPIRATION_HOURS", 8)

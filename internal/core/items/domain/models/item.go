@@ -2,7 +2,6 @@ package models
 
 import "time"
 
-// Domain model — no JSON tags, used internally by services and repositories.
 type Item struct {
 	ID          int64
 	UserID      int64
@@ -12,19 +11,16 @@ type Item struct {
 	UpdatedAt   time.Time
 }
 
-// API input for creating an item.
 type CreateItemDTO struct {
 	Name        string `json:"name" validate:"required,min=1,max=255"`
 	Description string `json:"description" validate:"max=2000"`
 }
 
-// API input for updating an item.
 type UpdateItemDTO struct {
 	Name        *string `json:"name"`
 	Description *string `json:"description"`
 }
 
-// API output — safe to serialize.
 type ItemResponse struct {
 	ID          int64     `json:"id"`
 	UserID      int64     `json:"user_id"`
@@ -40,7 +36,6 @@ type ItemFilter struct {
 	Offset int
 }
 
-// ToResponse converts a domain Item to an API response.
 func (i *Item) ToResponse() *ItemResponse {
 	return &ItemResponse{
 		ID:          i.ID,
@@ -52,7 +47,6 @@ func (i *Item) ToResponse() *ItemResponse {
 	}
 }
 
-// ItemsToResponses converts a slice of domain Items to API responses.
 func ItemsToResponses(items []*Item) []*ItemResponse {
 	responses := make([]*ItemResponse, len(items))
 	for idx, item := range items {

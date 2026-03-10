@@ -7,15 +7,16 @@ import (
 	"strings"
 	"time"
 
-	"github.com/ciaranmcdonnell/go-api-server/internal/metrics"
 	userrepo "github.com/ciaranmcdonnell/go-api-server/internal/core/user/repository"
+	"github.com/ciaranmcdonnell/go-api-server/internal/metrics"
 	"github.com/ciaranmcdonnell/go-api-server/models"
+	"github.com/ciaranmcdonnell/go-api-server/pkg/apperrors"
 	"github.com/ciaranmcdonnell/go-api-server/pkg/cache"
 	"github.com/ciaranmcdonnell/go-api-server/pkg/utils"
 	"github.com/golang-jwt/jwt/v5"
 )
 
-var userCache = cache.New[int64, *models.User](30 * time.Second)
+var userCache = cache.New[int64, *models.User](30*time.Second, 10000)
 
 const userCacheTTL = 5 * time.Minute
 
@@ -41,23 +42,23 @@ func NewAuthService(config *utils.Config, userQueries userrepo.UserQueriesInterf
 
 func (s *AuthService) ValidateToken(tokenString string) (*models.Claims, error) {
 	if tokenString == "" {
-		return nil, fmt.Errorf("authentication token required")
+		return nil, apperrors.ErrUnauthorized
 	}
 
 	token, err := jwt.ParseWithClaims(tokenString, &models.Claims{}, func(token *jwt.Token) (any, error) {
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+			return nil, fmt.Errorf("unexpected signing method %v: %w", token.Header["alg"], apperrors.ErrUnauthorized)
 		}
 		return []byte(s.config.JWTSecret), nil
 	})
 
 	if err != nil || !token.Valid {
-		return nil, fmt.Errorf("invalid token: %w", err)
+		return nil, fmt.Errorf("%w: %w", apperrors.ErrUnauthorized, err)
 	}
 
 	claims, ok := token.Claims.(*models.Claims)
 	if !ok || !token.Valid {
-		return nil, fmt.Errorf("invalid token claims")
+		return nil, apperrors.ErrUnauthorized
 	}
 
 	return claims, nil
@@ -66,11 +67,11 @@ func (s *AuthService) ValidateToken(tokenString string) (*models.Claims, error) 
 func (s *AuthService) AuthenticateUser(ctx context.Context, email, password string) (*models.User, error) {
 	user, err := s.userQueries.GetUserByEmail(ctx, email)
 	if err != nil {
-		return nil, fmt.Errorf("invalid credentials")
+		return nil, apperrors.ErrInvalidCredentials
 	}
 
 	if !utils.CheckPassword(password, user.HashedPassword) {
-		return nil, fmt.Errorf("invalid credentials")
+		return nil, apperrors.ErrInvalidCredentials
 	}
 
 	return &user, nil
@@ -129,7 +130,6 @@ func (s *AuthService) GetCurrentUser(ctx context.Context, userID int64) (*models
 	return result, nil
 }
 
-// ExtractTokenFromRequest extracts the JWT token string from Authorization header or cookie value.
 func ExtractTokenFromRequest(authHeader, cookieValue string) string {
 	if authHeader != "" {
 		token := strings.TrimPrefix(authHeader, utils.BearerPrefix)

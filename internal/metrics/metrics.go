@@ -6,8 +6,6 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 )
 
-// ── Request Metrics ────────────────────────────────────────────────────
-
 var HttpRequestsTotal = promauto.NewCounterVec(
 	prometheus.CounterOpts{
 		Name: "http_requests_total",
@@ -25,8 +23,6 @@ var HttpRequestDuration = promauto.NewHistogramVec(
 	[]string{"method", "route"},
 )
 
-// ── Audit Queue Metrics ────────────────────────────────────────────────
-
 var AuditQueueLength = promauto.NewGauge(prometheus.GaugeOpts{
 	Name: "audit_queue_length",
 	Help: "Current number of items in the audit worker queue",
@@ -36,8 +32,6 @@ var AuditQueueCapacity = promauto.NewGauge(prometheus.GaugeOpts{
 	Name: "audit_queue_capacity",
 	Help: "Total capacity of the audit worker queue",
 })
-
-// ── Cache Metrics ──────────────────────────────────────────────────────
 
 var CacheHitsTotal = promauto.NewCounterVec(
 	prometheus.CounterOpts{
@@ -55,7 +49,13 @@ var CacheMissesTotal = promauto.NewCounterVec(
 	[]string{"cache"},
 )
 
-// ── DB Pool Metrics ────────────────────────────────────────────────────
+var RateLimitRejectsTotal = promauto.NewCounterVec(
+	prometheus.CounterOpts{
+		Name: "rate_limit_rejects_total",
+		Help: "Total requests rejected by rate limiter",
+	},
+	[]string{"route"},
+)
 
 type dbPoolCollector struct {
 	pool           *pgxpool.Pool

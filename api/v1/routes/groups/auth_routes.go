@@ -1,6 +1,8 @@
 package groups
 
 import (
+	"time"
+
 	"github.com/gin-gonic/gin"
 	auditMiddleware "github.com/ciaranmcdonnell/go-api-server/internal/core/audit/interfaces/http/service"
 	authHandlers "github.com/ciaranmcdonnell/go-api-server/internal/core/auth/handlers"
@@ -12,7 +14,14 @@ import (
 )
 
 func AuthRoutes(router *gin.RouterGroup, authService authsvc.AuthServiceInterface, userService usersvc.UserServiceInterface, auditService auditMiddleware.AuditMiddleware, config *utils.Config) {
+	authLimiter := authmid.RateLimit(authmid.RateLimiterConfig{
+		Rate:       0.2,
+		Burst:      5,
+		CleanupTTL: 10 * time.Minute,
+	})
+
 	authGroup := router.Group("/auth")
+	authGroup.Use(authLimiter)
 	{
 		authGroup.POST("/login", func(c *gin.Context) { auditService(c) }, authHandlers.LoginHandler(authService, config))
 		registerGroup := authGroup.Group("/register")

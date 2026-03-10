@@ -4,93 +4,64 @@ A reusable Go backend server with built-in authentication, audit logging, and us
 
 ## Features
 
-- **JWT Authentication** — Login, logout, and session management via HTTP-only cookies
-- **User Management** — Registration with input validation and bcrypt password hashing
-- **Audit Trail** — Automatic request logging via middleware with generic entity tracking
-- **Database Migrations** — Automatic schema management with golang-migrate
-- **Clean Architecture** — Handlers, services, and repositories with clear separation of concerns
-- **Structured Logging** — JSON-friendly logging with `log/slog`
-- **Request Tracing** — Auto-generated `X-Request-ID` headers
-- **Docker Ready** — Multi-stage build with non-root user, docker-compose with PostgreSQL
-
-## Project Structure
-
-```
-.
-├── api/v1/             # HTTP routing and route groups
-├── cmd/server/         # Application entrypoint
-├── internal/
-│   ├── core/
-│   │   ├── audit/      # Audit trail (domain, service, repository, middleware)
-│   │   ├── auth/       # Authentication (handlers, middleware, service)
-│   │   ├── common/     # Shared registries, health check, request ID middleware
-│   │   └── user/       # User registration and queries
-│   └── database/       # Connection pool, migrations, SQL schemas
-├── models/             # Shared data models
-├── pkg/utils/          # Config, constants, validation, password hashing
-├── Dockerfile
-└── docker-compose.yml
-```
+- JWT authentication with HTTP-only cookie sessions
+- User registration with struct-tag validation and Argon2id password hashing
+- CRUD resource management with ownership enforcement
+- Automatic audit trail via middleware
+- Database migrations with golang-migrate
+- Rate limiting on auth endpoints
+- Prometheus metrics and Grafana dashboards
+- Structured logging with `log/slog`
+- Docker ready with multi-stage builds
 
 ## Getting Started
 
-### Prerequisites
-
-- Docker and Docker Compose
-- (Optional) Go 1.23+ for local development
-
-### Quick Start
-
-1. Clone the repository:
+1. Clone the repository and copy the example env file:
    ```bash
    git clone https://github.com/ciaranmcdonnell/go-api-server.git
    cd go-api-server
-   ```
-
-2. Copy the example environment file:
-   ```bash
    cp app.env.example app.env
    ```
 
-3. Update `app.env` with your settings (especially `JWT_SECRET`).
+2. Update `app.env` with your settings (especially `JWT_SECRET`).
 
-4. Start with Docker Compose:
+3. Start with Docker Compose:
    ```bash
    docker compose up --build
    ```
 
-   To run database migrations on startup:
-   ```bash
-   RUN_MIGRATIONS=true docker compose up --build
-   ```
-
 The server will be available at `http://localhost:8080`.
 
-### Configuration
+## API
+
+| Method | Path | Auth | Description |
+|---|---|---|---|
+| `POST` | `/api/v1/auth/register` | No | Register a new user |
+| `POST` | `/api/v1/auth/login` | No | Login and receive auth cookie |
+| `POST` | `/api/v1/auth/logout` | Yes | Clear auth cookie |
+| `GET` | `/api/v1/auth/me` | Yes | Get current user info |
+| `POST` | `/api/v1/items` | Yes | Create an item |
+| `GET` | `/api/v1/items` | Yes | List items |
+| `GET` | `/api/v1/items/:id` | Yes | Get an item |
+| `PUT` | `/api/v1/items/:id` | Yes | Update an item |
+| `DELETE` | `/api/v1/items/:id` | Yes | Delete an item |
+| `GET` | `/health` | No | Health check |
+
+## Configuration
 
 All configuration is via environment variables (or an `app.env` file):
 
 | Variable | Default | Description |
 |---|---|---|
 | `DB_SOURCE` | — | PostgreSQL connection string |
-| `JWT_SECRET` | — | **Required.** Secret key for signing JWTs (min 32 chars recommended) |
+| `JWT_SECRET` | — | Secret key for signing JWTs |
 | `SERVER_ADDRESS` | `0.0.0.0:8080` | Server listen address |
 | `ENVIRONMENT` | `development` | `development` or `production` |
 | `JWT_EXPIRATION_HOURS` | `8` | JWT token lifetime |
-| `CORS_ORIGINS` | `http://localhost:3000` | Allowed CORS origins (comma-separated) |
+| `CORS_ORIGINS` | `http://localhost:3000` | Allowed CORS origins |
 | `DB_MAX_CONNS` | `25` | Max database connections |
 | `DB_MIN_CONNS` | `5` | Min database connections |
-| `RUN_MIGRATIONS` | `false` | Run database migrations on startup |
-
-## API Endpoints
-
-| Method | Path | Auth | Description |
-|---|---|---|---|
-| `POST` | `/api/v1/auth/register` | No | Register a new user |
-| `POST` | `/api/v1/auth/login` | No | Login and receive auth cookie |
-| `POST` | `/api/v1/auth/logout` | No | Clear auth cookie |
-| `GET` | `/api/v1/auth/me` | Yes | Get current user info |
-| `GET` | `/api/v1/health` | No | Health check |
+| `RUN_MIGRATIONS` | `false` | Run migrations on startup |
 
 ## License
 

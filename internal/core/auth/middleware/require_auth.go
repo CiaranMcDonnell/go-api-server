@@ -12,7 +12,7 @@ import (
 	"github.com/ciaranmcdonnell/go-api-server/pkg/utils"
 )
 
-var tokenCache = cache.New[string, *models.Claims](30 * time.Second)
+var tokenCache = cache.New[string, *models.Claims](30*time.Second, 10000)
 
 func RequireAuth(authService authservice.AuthServiceInterface) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -21,7 +21,6 @@ func RequireAuth(authService authservice.AuthServiceInterface) gin.HandlerFunc {
 			getCookie(c, utils.CookieName),
 		)
 
-		// Check cache first
 		if claims, ok := tokenCache.Get(tokenString); ok {
 			metrics.CacheHitsTotal.WithLabelValues("token").Inc()
 			c.Set(utils.ContextKeyUserID, claims.UserID)

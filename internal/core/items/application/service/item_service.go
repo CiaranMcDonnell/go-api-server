@@ -2,10 +2,10 @@ package service
 
 import (
 	"context"
-	"fmt"
 
 	"github.com/ciaranmcdonnell/go-api-server/internal/core/items/domain/interfaces"
 	"github.com/ciaranmcdonnell/go-api-server/internal/core/items/domain/models"
+	"github.com/ciaranmcdonnell/go-api-server/pkg/apperrors"
 )
 
 type itemService struct {
@@ -38,7 +38,7 @@ func (s *itemService) GetItem(ctx context.Context, userID int64, itemID int64) (
 	}
 
 	if item.UserID != userID {
-		return nil, fmt.Errorf("not found")
+		return nil, apperrors.ErrNotFound
 	}
 
 	return item, nil
@@ -66,7 +66,7 @@ func (s *itemService) UpdateItem(ctx context.Context, userID int64, itemID int64
 	}
 
 	if item.UserID != userID {
-		return nil, fmt.Errorf("not found")
+		return nil, apperrors.ErrNotFound
 	}
 
 	if dto.Name != nil {
@@ -90,7 +90,7 @@ func (s *itemService) DeleteItem(ctx context.Context, userID int64, itemID int64
 	}
 
 	if item.UserID != userID {
-		return fmt.Errorf("not found")
+		return apperrors.ErrNotFound
 	}
 
 	return s.repo.Delete(ctx, itemID)
