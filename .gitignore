@@ -1,0 +1,8 @@
+.env
+app.env
+.env.*
+*.pem
+*.db
+*.txt
+.vscode/
+.DS_Store
