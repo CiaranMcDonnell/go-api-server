@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 450" font-family="'Inter','Segoe UI',system-ui,-apple-system,sans-serif">
+  <rect width="800" height="450" fill="#000000"/>
+  <text x="400" y="34" text-anchor="middle" fill="#f5f5f5" font-size="18" font-weight="700">Auth-Flow Stress Latency</text>
+  <text x="25" y="210" text-anchor="middle" fill="#a3a3a3" font-size="12" transform="rotate(-90,25,210)">Latency (ms)</text>
+  <line x1="80" y1="360.0" x2="770" y2="360.0" stroke="#2a2a2a" stroke-width="0.5"/>
+  <text x="70" y="364.0" text-anchor="end" fill="#a3a3a3" font-size="11">0.00</text>
+  <line x1="80" y1="300.0" x2="770" y2="300.0" stroke="#2a2a2a" stroke-width="0.5" stroke-dasharray="4,4"/>
+  <text x="70" y="304.0" text-anchor="end" fill="#a3a3a3" font-size="11">1.0K</text>
+  <line x1="80" y1="240.0" x2="770" y2="240.0" stroke="#2a2a2a" stroke-width="0.5" stroke-dasharray="4,4"/>
+  <text x="70" y="244.0" text-anchor="end" fill="#a3a3a3" font-size="11">2.0K</text>
+  <line x1="80" y1="180.0" x2="770" y2="180.0" stroke="#2a2a2a" stroke-width="0.5" stroke-dasharray="4,4"/>
+  <text x="70" y="184.0" text-anchor="end" fill="#a3a3a3" font-size="11">3.0K</text>
+  <line x1="80" y1="120.0" x2="770" y2="120.0" stroke="#2a2a2a" stroke-width="0.5" stroke-dasharray="4,4"/>
+  <text x="70" y="124.0" text-anchor="end" fill="#a3a3a3" font-size="11">4.0K</text>
+  <line x1="80" y1="60.0" x2="770" y2="60.0" stroke="#2a2a2a" stroke-width="0.5" stroke-dasharray="4,4"/>
+  <text x="70" y="64.0" text-anchor="end" fill="#a3a3a3" font-size="11">5.0K</text>
+  <rect x="116.1" y="318.4" width="50.4" height="41.6" fill="#3b82f6" rx="3" opacity="0.9"/>
+  <text x="141.3" y="312.4" text-anchor="middle" fill="#f5f5f5" font-size="11" font-weight="500">694</text>
+  <rect x="169.8" y="188.4" width="50.4" height="171.6" fill="#eab308" rx="3" opacity="0.9"/>
+  <text x="195.0" y="182.4" text-anchor="middle" fill="#f5f5f5" font-size="11" font-weight="500">2.9K</text>
+  <rect x="223.4" y="166.8" width="50.4" height="193.2" fill="#ef4444" rx="3" opacity="0.9"/>
+  <text x="248.7" y="160.8" text-anchor="middle" fill="#f5f5f5" font-size="11" font-weight="500">3.2K</text>
+  <text x="195.0" y="382" text-anchor="middle" fill="#f5f5f5" font-size="13" font-weight="500">baseline</text>
+  <rect x="346.1" y="341.0" width="50.4" height="19.0" fill="#3b82f6" rx="3" opacity="0.9"/>
+  <text x="371.3" y="335.0" text-anchor="middle" fill="#f5f5f5" font-size="11" font-weight="500">316</text>
+  <rect x="399.8" y="169.3" width="50.4" height="190.7" fill="#eab308" rx="3" opacity="0.9"/>
+  <text x="425.0" y="163.3" text-anchor="middle" fill="#f5f5f5" font-size="11" font-weight="500">3.2K</text>
+  <rect x="453.4" y="145.4" width="50.4" height="214.6" fill="#ef4444" rx="3" opacity="0.9"/>
+  <text x="478.7" y="139.4" text-anchor="middle" fill="#f5f5f5" font-size="11" font-weight="500">3.6K</text>
+  <text x="425.0" y="382" text-anchor="middle" fill="#f5f5f5" font-size="13" font-weight="500">opt-v1</text>
+  <rect x="576.1" y="354.3" width="50.4" height="5.7" fill="#3b82f6" rx="3" opacity="0.9"/>
+  <text x="601.3" y="348.3" text-anchor="middle" fill="#f5f5f5" font-size="11" font-weight="500">95.3</text>
+  <rect x="629.8" y="295.2" width="50.4" height="64.8" fill="#eab308" rx="3" opacity="0.9"/>
+  <text x="655.0" y="289.2" text-anchor="middle" fill="#f5f5f5" font-size="11" font-weight="500">1.1K</text>
+  <rect x="683.4" y="237.0" width="50.4" height="123.0" fill="#ef4444" rx="3" opacity="0.9"/>
+  <text x="708.7" y="231.0" text-anchor="middle" fill="#f5f5f5" font-size="11" font-weight="500">2.0K</text>
+  <text x="655.0" y="382" text-anchor="middle" fill="#f5f5f5" font-size="13" font-weight="500">argon2id</text>
+  <line x1="80" y1="60" x2="80" y2="360" stroke="#333333" stroke-width="1"/>
+  <line x1="80" y1="360" x2="770" y2="360" stroke="#333333" stroke-width="1"/>
+  <rect x="321.3" y="423" width="14" height="14" fill="#3b82f6" rx="3"/>
+  <text x="341.3" y="434" fill="#a3a3a3" font-size="12">p50</text>
+  <rect x="379.8" y="423" width="14" height="14" fill="#eab308" rx="3"/>
+  <text x="399.8" y="434" fill="#a3a3a3" font-size="12">p95</text>
+  <rect x="438.3" y="423" width="14" height="14" fill="#ef4444" rx="3"/>
+  <text x="458.3" y="434" fill="#a3a3a3" font-size="12">p99</text>
+</svg>
