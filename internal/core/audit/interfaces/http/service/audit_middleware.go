@@ -38,12 +38,18 @@ func NewAuditMiddleware(config AuditMiddlewareConfig) AuditMiddleware {
 
 		var requestBodyBytes []byte
 		if c.Request.Body != nil {
-			var err error
-			requestBodyBytes, err = io.ReadAll(io.LimitReader(c.Request.Body, maxBodyCapture))
+			fullBody, err := io.ReadAll(c.Request.Body)
 			if err != nil {
 				slog.Warn("Failed to read request body for audit", "error", err)
 			} else {
-				c.Request.Body = io.NopCloser(bytes.NewBuffer(requestBodyBytes))
+				// Restore the full body for downstream handlers
+				c.Request.Body = io.NopCloser(bytes.NewBuffer(fullBody))
+				// Truncate only the audit copy
+				if len(fullBody) > maxBodyCapture {
+					requestBodyBytes = fullBody[:maxBodyCapture]
+				} else {
+					requestBodyBytes = fullBody
+				}
 			}
 		}
 
