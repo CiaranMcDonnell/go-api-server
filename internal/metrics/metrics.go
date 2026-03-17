@@ -54,7 +54,7 @@ var RateLimitRejectsTotal = promauto.NewCounterVec(
 		Name: "rate_limit_rejects_total",
 		Help: "Total requests rejected by rate limiter",
 	},
-	[]string{"route"},
+	[]string{"route", "tier"},
 )
 
 type dbPoolCollector struct {

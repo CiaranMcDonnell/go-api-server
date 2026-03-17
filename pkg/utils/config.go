@@ -22,6 +22,13 @@ type Config struct {
 	CORSOrigins        string `mapstructure:"CORS_ORIGINS"`
 	RequestTimeoutSecs int    `mapstructure:"REQUEST_TIMEOUT_SECS"`
 	MaxBodyBytes       int64  `mapstructure:"MAX_BODY_BYTES"`
+
+	RateLimitStrictRate    float64 `mapstructure:"RATE_LIMIT_STRICT_RATE"`
+	RateLimitStrictBurst   int     `mapstructure:"RATE_LIMIT_STRICT_BURST"`
+	RateLimitStandardRate  float64 `mapstructure:"RATE_LIMIT_STANDARD_RATE"`
+	RateLimitStandardBurst int     `mapstructure:"RATE_LIMIT_STANDARD_BURST"`
+	RateLimitRelaxedRate   float64 `mapstructure:"RATE_LIMIT_RELAXED_RATE"`
+	RateLimitRelaxedBurst  int     `mapstructure:"RATE_LIMIT_RELAXED_BURST"`
 }
 
 var (
@@ -44,6 +51,9 @@ func LoadConfig() (*Config, error) {
 		"JWT_SECRET", "JWT_EXPIRATION_HOURS", "COOKIE_MAX_AGE_SECS",
 		"SCHEMA_PATH", "CORS_ORIGINS",
 		"REQUEST_TIMEOUT_SECS", "MAX_BODY_BYTES",
+		"RATE_LIMIT_STRICT_RATE", "RATE_LIMIT_STRICT_BURST",
+		"RATE_LIMIT_STANDARD_RATE", "RATE_LIMIT_STANDARD_BURST",
+		"RATE_LIMIT_RELAXED_RATE", "RATE_LIMIT_RELAXED_BURST",
 	} {
 		viper.BindEnv(key)
 	}
@@ -56,6 +66,13 @@ func LoadConfig() (*Config, error) {
 	viper.SetDefault("DB_MIN_CONNS", 20)
 	viper.SetDefault("REQUEST_TIMEOUT_SECS", 10)
 	viper.SetDefault("MAX_BODY_BYTES", 1<<20) // 1MB
+
+	viper.SetDefault("RATE_LIMIT_STRICT_RATE", 0.2)
+	viper.SetDefault("RATE_LIMIT_STRICT_BURST", 5)
+	viper.SetDefault("RATE_LIMIT_STANDARD_RATE", 2.0)
+	viper.SetDefault("RATE_LIMIT_STANDARD_BURST", 10)
+	viper.SetDefault("RATE_LIMIT_RELAXED_RATE", 5.0)
+	viper.SetDefault("RATE_LIMIT_RELAXED_BURST", 15)
 
 	var cfg Config
 	if err := viper.ReadInConfig(); err != nil {

@@ -23,7 +23,7 @@ func RegisterRoutes(router *gin.Engine, services commonService.ServicesInterface
 		v1 := api.Group("/v1")
 		{
 			groups.AuthRoutes(v1, authService, userService, auditHandler, config)
-			groups.ItemRoutes(v1, authService, itemService, auditHandler)
+			groups.ItemRoutes(v1, authService, itemService, auditHandler, config)
 		}
 	}
 }

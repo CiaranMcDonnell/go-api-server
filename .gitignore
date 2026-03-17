@@ -8,3 +8,4 @@ app.env
 .DS_Store
 benchmark/results/*.json
 docs/
+.worktrees/
